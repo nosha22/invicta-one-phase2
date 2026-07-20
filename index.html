@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invicta-One | Phase 2 Floor Command</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: var(--bg);
+      background-image:
+        radial-gradient(1px 1px at 12% 22%, var(--star) 50%, transparent 51%),
+        radial-gradient(1px 1px at 78% 12%, var(--star) 50%, transparent 51%),
+        radial-gradient(1.5px 1.5px at 55% 68%, var(--star) 50%, transparent 51%),
+        radial-gradient(1px 1px at 30% 85%, var(--star) 50%, transparent 51%),
+        radial-gradient(1px 1px at 92% 55%, var(--star) 50%, transparent 51%);
+    }
+    .glow-brand { box-shadow: 0 0 24px rgba(127, 86, 250, 0.18); }
+    canvas { image-rendering: pixelated; }
+    .dpad button { touch-action: manipulation; user-select: none; }
+    :root {
+      --visma-purple: #7F56FA;
+      /* Amplify gradient — approximation of the official purple-to-warm ramp.
+         Swap these stops for the exact ones from design.visma.com assets if you have them. */
+      --amplify: linear-gradient(90deg, #7F56FA 0%, #D96AA8 55%, #FF8A5C 100%);
+      /* Theme variables (defaults = Visma Purple; switched at runtime by applyTheme) */
+      --bg:#131313; --star:rgba(255,255,255,.4); --panel:rgba(26,26,31,.9); --panel2:#101014;
+      --line:#2e2e36; --line2:#232329; --line3:#3a3a44; --btn2:#232329;
+      --accent:#9d7dff; --accent-strong:#7F56FA; --accent-soft:rgba(127,86,250,.10);
+      --accent-border:rgba(127,86,250,.35); --btn-text:#FEFEFE;
+      --text-main:#f4f4f5; --text-dim:#84848c; --text-dim2:#a1a1aa; --text-secondary:#B9C4C9;
+      --input-text:#E7EBEC; --output-text:#c8b8ff;
+    }
+    #splash { transition: opacity .45s ease; }
+  </style>
+</head>
+<body class="text-[var(--text-main)] min-h-screen font-mono flex flex-col items-center justify-between p-4">
+
+  <!-- Branded loading screen: Visma white base, one Amplify gradient moment -->
+  <div id="splash" class="fixed inset-0 z-50 flex flex-col items-center justify-center gap-5 cursor-pointer" style="background:#FEFEFE" onclick="finishSplash()" title="Click to skip">
+    <img src="https://design.visma.com/hubfs/00%20Visma%20Brand/00%20Logos/visma-logo--brand-guidelines-.svg"
+         alt="Visma" class="h-12"
+         onerror="this.style.display='none'; document.getElementById('logo-fallback').style.display='flex';">
+    <div id="logo-fallback" style="display:none" class="items-end gap-1 text-5xl font-black tracking-tight text-[#131313]">VISMA<span class="text-[#7F56FA] text-3xl leading-none pb-1">▴</span></div>
+    <div class="text-[11px] uppercase tracking-[0.3em] text-[#131313] font-bold">Invicta-One · Phase 2 Floor Command</div>
+    <div class="w-64 h-1.5 rounded-full overflow-hidden" style="background:#E7EBEC">
+      <div id="splash-bar" class="h-full rounded-full" style="width:0%; background:var(--amplify)"></div>
+    </div>
+    <div id="splash-status" class="text-[10px] uppercase tracking-widest text-[var(--text-dim)]">Booting floor systems…</div>
+  </div>
+
+  <!-- Header -->
+  <header class="text-center my-2">
+    <h1 class="text-2xl md:text-3xl font-black text-[var(--accent)] tracking-wider uppercase">
+      🛸 Invicta-One // Phase 2 Floor Command
+    </h1>
+    <p class="text-[11px] text-[var(--text-dim2)] uppercase tracking-widest mt-1">
+      Visma Porto HQ · walk with WASD / arrows · press E to interact · dress a skill in the
+      <span class="text-[var(--accent)] font-bold">skill rooms</span>, then test it at a
+      <span class="text-[var(--text-secondary)] font-bold">playground terminal</span>
+    </p>
+  </header>
+
+  <!-- Game Frame Grid -->
+  <div class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-4 gap-4 my-auto">
+
+    <!-- LEFT: HUD -->
+    <div class="lg:col-span-1 flex flex-col gap-3 bg-[var(--panel)] p-4 rounded-xl border border-[var(--line)] glow-brand">
+      <h2 class="text-xs font-bold text-[var(--accent)] uppercase border-b border-[var(--line)] pb-2">[ Developer Rig ]</h2>
+
+      <div class="bg-[var(--panel2)] p-3 rounded border border-[var(--line2)]">
+        <div class="text-[10px] text-[var(--text-dim)] uppercase">Selected operative</div>
+        <div class="flex items-center gap-2 mt-1">
+          <span id="hud-sprite" class="text-2xl">👨‍💻</span>
+          <span id="hud-char-class" class="font-bold text-xs text-[var(--text-secondary)] uppercase">Trainee Developer</span>
+        </div>
+      </div>
+
+      <div class="bg-[var(--panel2)] p-3 rounded border border-[var(--line2)] flex-grow flex flex-col justify-between min-h-[150px]">
+        <div>
+          <div class="text-[10px] text-[var(--text-dim)] uppercase">Equipped agent skill</div>
+          <div id="hud-skill-name" class="font-black text-[var(--accent)] text-sm mt-1">NO SKILL MOUNTED</div>
+          <p id="hud-skill-desc" class="text-[11px] text-[var(--text-dim2)] mt-2 leading-relaxed">
+            Walk into a skill room to dress your character with an AI agent's skill.
+          </p>
+        </div>
+        <div id="hud-skill-file" class="hidden mt-2 bg-[var(--accent-soft)] border border-[var(--accent-border)] p-1.5 rounded text-[10px] text-[var(--accent)] font-mono text-center uppercase"></div>
+      </div>
+
+      <div class="bg-[var(--panel2)] p-3 rounded border border-[var(--line2)] text-[10px] text-[var(--text-dim)] leading-relaxed uppercase">
+        <span class="text-[var(--accent)]">Legend</span> ·
+        <span class="text-[var(--accent)]">■</span> skill rooms · <span class="text-[var(--text-secondary)]">■</span> terminals · 🌿 terraço · 🧘 sensei<br>
+        Fleet: 4 SKILL.md + fixtures + check_determinism.py
+      </div>
+
+      <div class="bg-[var(--panel2)] p-3 rounded border border-[var(--line2)]">
+        <div class="text-[10px] text-[var(--text-dim)] uppercase mb-1.5">Colour theme</div>
+        <div id="theme-buttons" class="flex flex-wrap gap-1.5 text-[var(--text-main)]"></div>
+      </div>
+    </div>
+
+    <!-- CENTER & RIGHT: Floor canvas -->
+    <div class="lg:col-span-3 flex flex-col items-center bg-[var(--panel2)] p-3 rounded-xl border border-[var(--line)] relative">
+      <canvas id="floorCanvas" width="864" height="504" class="bg-[var(--panel2)] rounded border-2 border-[var(--line2)] max-w-full"></canvas>
+
+      <button id="interact-hint" onclick="openInteraction()"
+        class="hidden absolute top-5 left-1/2 -translate-x-1/2 z-10 bg-black/85 border border-[var(--accent-strong)] text-[var(--text-main)] text-[10px] font-bold uppercase tracking-wider px-3 py-1.5 rounded-full"></button>
+
+      <!-- Mobile D-pad -->
+      <div class="dpad lg:hidden grid grid-cols-3 gap-1 mt-3 select-none">
+        <span></span>
+        <button onclick="move('up')" class="bg-[var(--btn2)] border border-[var(--line3)] rounded px-4 py-2 text-[var(--accent)] font-black">▲</button>
+        <span></span>
+        <button onclick="move('left')" class="bg-[var(--btn2)] border border-[var(--line3)] rounded px-4 py-2 text-[var(--accent)] font-black">◀</button>
+        <button onclick="openInteraction()" class="bg-[var(--accent-strong)] border border-[var(--accent-strong)] rounded px-4 py-2 text-[var(--btn-text)] font-black">E</button>
+        <button onclick="move('right')" class="bg-[var(--btn2)] border border-[var(--line3)] rounded px-4 py-2 text-[var(--accent)] font-black">▶</button>
+        <span></span>
+        <button onclick="move('down')" class="bg-[var(--btn2)] border border-[var(--line3)] rounded px-4 py-2 text-[var(--accent)] font-black">▼</button>
+        <span></span>
+      </div>
+
+      <!-- Dialogue / terminal overlay -->
+      <div id="dialogue-box" class="absolute bottom-6 left-6 right-6 bg-black/95 border-2 border-[var(--accent-strong)] p-4 rounded-lg hidden flex-col justify-between z-10">
+        <div class="flex justify-between items-start">
+          <h3 id="dialogue-title" class="text-xs font-bold text-[var(--accent)] uppercase tracking-wider">Interface Terminal</h3>
+          <button onclick="closeTerminal()" class="text-xs text-[var(--text-dim)] hover:text-white uppercase">[Close]</button>
+        </div>
+        <p id="dialogue-text" class="text-xs text-gray-200 leading-relaxed mt-2 whitespace-pre-line">...</p>
+
+        <div id="playground-interface" class="hidden flex-col gap-2 mt-3">
+          <label id="playground-label" class="text-[10px] text-[var(--accent)] uppercase font-bold">Input messy data payload:</label>
+          <textarea id="playground-input" rows="2" class="w-full bg-[#101014] border border-[#2e2e36] rounded p-1.5 text-xs font-mono text-[var(--input-text)] focus:outline-none focus:border-[var(--accent-strong)]" placeholder="Paste dirty commits, tickets, diffs or transcripts here..."></textarea>
+          <button id="playground-run" onclick="runSimulator()" class="bg-[var(--accent-strong)] hover:bg-[var(--accent)] text-[var(--btn-text)] font-bold text-xs py-2 rounded uppercase tracking-wider transition">
+            ⚡ Run agentic blueprint evaluation
+          </button>
+          <pre id="playground-output" class="hidden bg-[#101014] border border-[var(--accent-border)] rounded p-2 text-[10px] text-[var(--output-text)] leading-relaxed overflow-x-auto"></pre>
+        </div>
+
+        <div id="dialogue-options" class="flex flex-wrap gap-2 mt-3 justify-end"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer class="text-center text-[10px] text-[var(--text-dim)] my-2 uppercase tracking-widest">
+    Invicta-One · Visma Tech Portugal · May the Intelligence Be With You ✦
+  </footer>
+
+  <script>
+    // ==== PURE_MAP_START ====
+    // Tile grid modeled on the real Porto floor plan:
+    // terrace strip (west) | open space, 6 bench clusters + long table (44 pax)
+    // | WC/services core + kitchen + dining (centre) | lounge (south of core)
+    // | spiral stair + 2 lifts + boardroom + nook (east) | 3 phone booths (south-east)
+    // | stepped south facade and slanted top-right corner.
+    const TILE_SIZE = 24;
+    const COLS = 36;
+    const ROWS = 21;
+
+    const VOID = -1, FLOOR = 0, WALL = 1, CORE = 2, DESK = 3, TABLE = 4,
+          SOFA = 5, PLANT = 6, TERRACE = 7, LIFT = 8, STAIR = 9, TERM = 10, KITCHEN = 11, SENSEI = 12;
+
+    const WALKABLE = v => v === FLOOR || v === TERRACE;
+
+    function buildMap() {
+      const m = Array.from({ length: ROWS }, () => Array(COLS).fill(VOID));
+      const rect = (x, y, w, h, v) => {
+        for (let r = y; r < y + h; r++)
+          for (let c = x; c < x + w; c++)
+            if (r >= 0 && r < ROWS && c >= 0 && c < COLS) m[r][c] = v;
+      };
+
+      // ---- walkable shell ----
+      rect(5, 2, 11, 16, FLOOR);    // open space (west block)
+      rect(11, 17, 5, 1, VOID);     // stepped south facade: east half is shallower
+      rect(16, 5, 10, 9, FLOOR);    // central band around the services core
+      rect(26, 5, 4, 7, FLOOR);     // east corridor (stair/lift lobby)
+      rect(29, 2, 1, 3, FLOOR);     // passage beside the stair, up to the boardroom
+      rect(30, 2, 5, 3, FLOOR);     // boardroom
+      rect(30, 5, 5, 3, FLOOR);     // east band (inspector nook)
+      rect(30, 8, 2, 2, FLOOR);     // approach to booth 3
+      rect(26, 10, 6, 2, FLOOR);    // phone-booth strip
+      rect(1, 2, 3, 12, TERRACE);   // terraço (34 m²)
+
+      // slanted facade cuts (top-right corner of the plan)
+      rect(34, 2, 1, 1, VOID);
+      rect(34, 7, 1, 1, VOID);
+
+      // ---- structure ----
+      rect(4, 1, 1, 14, WALL);      // facade between terrace and office
+      rect(4, 7, 1, 2, FLOOR);      // terrace door
+      rect(16, 7, 6, 3, CORE);      // WC / services core (the black block on the plan)
+      rect(22, 7, 1, 3, KITCHEN);   // kitchen counter on the core's east face
+
+      // ---- open space: 6 bench clusters ----
+      rect(6, 2, 2, 3, DESK);   rect(11, 2, 2, 3, DESK);
+      rect(6, 8, 2, 3, DESK);   rect(11, 8, 2, 3, DESK);
+      rect(6, 13, 2, 3, DESK);  rect(11, 13, 2, 3, DESK);
+
+      // playground terminals (blue): 3 bench-end seats + 1 on the long table
+      m[4][7] = TERM;  m[4][12] = TERM;  m[10][7] = TERM;  m[13][16] = TERM;
+
+      // ---- centre: dining, lounge, long table ----
+      rect(23, 7, 2, 1, TABLE);  rect(23, 9, 2, 1, TABLE);  // dining tables
+      rect(16, 11, 2, 1, SOFA);                             // armchairs south of the core
+      rect(22, 11, 3, 1, SOFA);  m[12][24] = SOFA;          // lounge sofas + pouf
+      m[12][21] = PLANT;  m[10][25] = PLANT;                // plants
+      rect(17, 13, 3, 1, TABLE);                            // 8-seat long table
+
+      // ---- east wing ----
+      rect(26, 1, 3, 3, STAIR);                             // spiral stair core
+      m[5][26] = LIFT;  m[6][26] = LIFT;                    // two elevators
+      m[3][32] = TABLE;                                     // boardroom round table
+      m[10][27] = WALL; m[11][27] = WALL;                   // phone-booth separators
+      m[10][29] = WALL; m[11][29] = WALL;
+      m[10][31] = WALL; m[11][31] = WALL;
+      m[11][26] = DESK; m[11][28] = DESK; m[11][30] = DESK; // booth seats
+      m[6][33] = DESK;  m[6][34] = DESK;                    // inspector nook desks
+      m[3][2] = PLANT;  m[5][2] = SENSEI;  m[12][2] = PLANT;                   // terrace greenery
+
+      // ---- auto walls: any void touching the interior becomes structure ----
+      const solid = v => v !== VOID && v !== WALL;
+      for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) {
+        if (m[r][c] !== VOID) continue;
+        const near = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]].some(([dr, dc]) => {
+          const rr = r + dr, cc = c + dc;
+          return rr >= 0 && rr < ROWS && cc >= 0 && cc < COLS && solid(m[rr][cc]);
+        });
+        if (near) m[r][c] = WALL;
+      }
+      return m;
+    }
+
+    const SPAWN = { x: 9, y: 5 };
+    const SENSEI_POS = { x: 2, y: 5 };   // the Prompt Sensei meditates on the terrace
+
+    // Interactive rooms, placed on the plan's real rooms
+    const redRooms = [
+      { x: 20, y: 10, w: 6, h: 4, type: 'lobby',   emoji: '🛋️', name: 'Operative Lounge',
+        desc: 'The chill zone by the sofas. Select your operative profile before mounting skills.' },
+      { x: 22, y: 5,  w: 4, h: 5, type: 'trial1',  emoji: '📜', name: 'Archivist Café',
+        desc: 'Kitchen & dining corner. Trial 1 — equip Release-Notes-Writer.md here.' },
+      { x: 26, y: 9,  w: 6, h: 3, type: 'trial2',  emoji: '📐', name: 'Scribe Booths',
+        desc: 'The three phone booths. Trial 2 — equip Jira-Ticket-Writer.md here.' },
+      { x: 30, y: 2,  w: 5, h: 3, type: 'trial3',  emoji: '🛡️', name: 'Sentinel Boardroom',
+        desc: 'Top-right boardroom. Trial 3 — equip PR-Reviewer.md here.' },
+      { x: 32, y: 5,  w: 3, h: 3, type: 'bonus',   emoji: '🔍', name: 'Inspector Nook',
+        desc: 'Two quiet desks by the slanted wall. Bonus skill — equip Ticket-Tester.md here.' },
+      { x: 1,  y: 2,  w: 3, h: 12, type: 'terrace', emoji: '🌿', name: 'Terraço',
+        desc: '34 m² of Porto air. A sensei meditates at the north end — bring him a rough prompt.' },
+    ];
+    // ==== PURE_MAP_END ====
+
+    const canvas = document.getElementById('floorCanvas');
+    const ctx = canvas.getContext('2d');
+    const floorMap = buildMap();
+
+    // Playground terminals are discovered from the map, west-to-east, north-to-south
+    const stationNames = ['Alpha', 'Beta', 'Gamma', 'Delta'];
+    const playgroundDesks = [];
+    for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++)
+      if (floorMap[r][c] === TERM)
+        playgroundDesks.push({ x: c, y: r, name: 'Playground Station ' + (stationNames[playgroundDesks.length] || playgroundDesks.length + 1) });
+
+    let player = { x: SPAWN.x, y: SPAWN.y, sprite: '👨‍💻', className: 'Trainee Developer' };
+    let activeSkill = null;
+    let dialogueOpen = false;
+    let currentTarget = null;
+    let currentType = '';
+    let blinkOn = true;
+
+    // ==== THEMES_START ====
+    const THEMES = {
+      purple: {
+        name: 'Visma Purple', swatch: '#7F56FA',
+        ui: { 'bg':'#131313','star':'rgba(255,255,255,.4)','panel':'rgba(26,26,31,.9)','panel2':'#101014',
+          'line':'#2e2e36','line2':'#232329','line3':'#3a3a44','btn2':'#232329',
+          'accent':'#9d7dff','accent-strong':'#7F56FA','accent-soft':'rgba(127,86,250,.10)',
+          'accent-border':'rgba(127,86,250,.35)','btn-text':'#FEFEFE','text-main':'#f4f4f5',
+          'text-dim':'#84848c','text-dim2':'#a1a1aa','text-secondary':'#B9C4C9',
+          'input-text':'#E7EBEC','output-text':'#c8b8ff' },
+        map: { floor:'#1b1826', floorLine:'#262138', terrace:'#191b0a', terraceLine:'#34350f',
+          wall:'#09090c', wallLine:'#26262e', core:'#0b0a10', coreLine:'#3b3060', block:'#0d0c12',
+          counter:'#3a4147', counterDots:'#B9C4C9', desk:'#2a2444', deskTop:'#453a6e',
+          termFill:'rgba(254,254,254,.14)', termStroke:'#E7EBEC', table:'#2e2750', tableLeg:'#5d5090',
+          sofa:'#3a0a27', sofaLine:'#6d1247', lift:'#7F56FA', spiral:'#8f7fd6', coreLabel:'#5b4a8f',
+          zoneLabel:'#3f3566', terraceLabel:'#6b672a', accent:'#7F56FA',
+          roomFill:'rgba(127,86,250,0.07)', terraceAccent:'#a8a24a', watermark:'rgba(127,86,250,0.11)' },
+      },
+      light: {
+        name: 'Visma Light', swatch: '#FEFEFE',
+        ui: { 'bg':'#FEFEFE','star':'rgba(19,19,19,.12)','panel':'rgba(249,245,241,.95)','panel2':'#F9F5F1',
+          'line':'#d9dde0','line2':'#E7EBEC','line3':'#c7ced2','btn2':'#E7EBEC',
+          'accent':'#6a3ff5','accent-strong':'#7F56FA','accent-soft':'rgba(127,86,250,.10)',
+          'accent-border':'rgba(127,86,250,.4)','btn-text':'#FEFEFE','text-main':'#131313',
+          'text-dim':'#84848c','text-dim2':'#55555c','text-secondary':'#5f6b70',
+          'input-text':'#E7EBEC','output-text':'#c8b8ff' },
+        map: { floor:'#F9F5F1', floorLine:'#E7EBEC', terrace:'#edf0e0', terraceLine:'#d3d8bc',
+          wall:'#131313', wallLine:'#2e2e2e', core:'#131313', coreLine:'#4a3f77', block:'#131313',
+          counter:'#d8dde0', counterDots:'#7f8b91', desk:'#e2e5e7', deskTop:'#cdd3d6',
+          termFill:'rgba(127,86,250,.12)', termStroke:'#7F56FA', table:'#dde1e3', tableLeg:'#B9C4C9',
+          sofa:'#4C0C32', sofaLine:'#7a2452', lift:'#7F56FA', spiral:'#7F56FA', coreLabel:'#a496e0',
+          zoneLabel:'#a9b3b8', terraceLabel:'#9a9a52', accent:'#7F56FA',
+          roomFill:'rgba(127,86,250,0.06)', terraceAccent:'#8a8a3a', watermark:'rgba(127,86,250,0.10)' },
+      },
+      navy: {
+        name: 'Invicta Navy', swatch: '#facc15',
+        ui: { 'bg':'#060d1f','star':'rgba(255,255,255,.5)','panel':'rgba(15,23,42,.85)','panel2':'#020617',
+          'line':'#334155','line2':'#1e293b','line3':'#475569','btn2':'#1e293b',
+          'accent':'#facc15','accent-strong':'#eab308','accent-soft':'rgba(250,204,21,.10)',
+          'accent-border':'rgba(250,204,21,.35)','btn-text':'#0f172a','text-main':'#f3f4f6',
+          'text-dim':'#64748b','text-dim2':'#94a3b8','text-secondary':'#60a5fa',
+          'input-text':'#fde68a','output-text':'#4ade80' },
+        map: { floor:'#0b1327', floorLine:'#141f42', terrace:'#0b1e20', terraceLine:'#15373a',
+          wall:'#01040d', wallLine:'#1e293b', core:'#030711', coreLine:'#22335e', block:'#05070f',
+          counter:'#33456f', counterDots:'#93a6d8', desk:'#22315a', deskTop:'#3a4f86',
+          termFill:'rgba(59,130,246,.25)', termStroke:'#3b82f6', table:'#2b3a63', tableLeg:'#55648f',
+          sofa:'#4c4136', sofaLine:'#6e5c46', lift:'#facc15', spiral:'#8da2d8', coreLabel:'#41579a',
+          zoneLabel:'#2c3f76', terraceLabel:'#1f5a4e', accent:'#facc15',
+          roomFill:'rgba(250,204,21,0.05)', terraceAccent:'#2dd4bf', watermark:'rgba(250,204,21,0.08)' },
+      },
+      red: {
+        name: 'Legacy Red', swatch: '#E60641',
+        ui: { 'bg':'#100a0c','star':'rgba(255,255,255,.35)','panel':'rgba(28,17,21,.9)','panel2':'#140d10',
+          'line':'#34252a','line2':'#241a1e','line3':'#48343b','btn2':'#241a1e',
+          'accent':'#ff6b8f','accent-strong':'#E60641','accent-soft':'rgba(230,6,65,.10)',
+          'accent-border':'rgba(230,6,65,.35)','btn-text':'#FEFEFE','text-main':'#f5f0f1',
+          'text-dim':'#8c7f83','text-dim2':'#ab9ea3','text-secondary':'#c9b9bd',
+          'input-text':'#ffd6e0','output-text':'#ff9db4' },
+        map: { floor:'#191014', floorLine:'#2a1b20', terrace:'#141a10', terraceLine:'#2c3a22',
+          wall:'#0a0608', wallLine:'#241a1e', core:'#0d0709', coreLine:'#5c2030', block:'#120a0d',
+          counter:'#3c3236', counterDots:'#c9b9bd', desk:'#2b1c22', deskTop:'#4a2c36',
+          termFill:'rgba(254,254,254,.14)', termStroke:'#E7EBEC', table:'#33222a', tableLeg:'#6b4552',
+          sofa:'#46392c', sofaLine:'#6e5c46', lift:'#E60641', spiral:'#d8798f', coreLabel:'#8f4a5e',
+          zoneLabel:'#6b3a48', terraceLabel:'#4e6b2a', accent:'#E60641',
+          roomFill:'rgba(230,6,65,0.07)', terraceAccent:'#7fae4a', watermark:'rgba(230,6,65,0.09)' },
+      },
+    };
+    // ==== THEMES_END ====
+    let theme = THEMES.purple;
+
+    // ---------- rendering ----------
+    function roundedRect(x, y, w, h, r) {
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+
+    const inTerrace = (c, r) => c >= 1 && c <= 3 && r >= 2 && r <= 13;
+
+    // Pass 1: the ground (floors, walls, cores) — the watermark is painted on top of
+    // this, and the furniture on top of the watermark, like real floor vinyl.
+    function drawGround(c, r, v) {
+      const x = c * TILE_SIZE, y = r * TILE_SIZE, T = TILE_SIZE, M = theme.map;
+      switch (v) {
+        case VOID: return;
+        case WALL:
+          ctx.fillStyle = M.wall; ctx.fillRect(x, y, T, T);
+          ctx.strokeStyle = M.wallLine; ctx.strokeRect(x + .5, y + .5, T - 1, T - 1);
+          return;
+        case CORE:
+          ctx.fillStyle = M.core; ctx.fillRect(x, y, T, T);
+          ctx.strokeStyle = M.coreLine; ctx.strokeRect(x + 1, y + 1, T - 2, T - 2);
+          return;
+        case LIFT:
+        case STAIR:
+          ctx.fillStyle = M.block; ctx.fillRect(x, y, T, T);
+          return;
+        case SENSEI:
+        case TERRACE:
+          ctx.fillStyle = M.terrace; ctx.fillRect(x, y, T, T);
+          ctx.strokeStyle = M.terraceLine; ctx.strokeRect(x + .5, y + .5, T - 1, T - 1);
+          return;
+        default: {
+          const onTerrace = v === PLANT && inTerrace(c, r);
+          ctx.fillStyle = onTerrace ? M.terrace : M.floor; ctx.fillRect(x, y, T, T);
+          ctx.strokeStyle = onTerrace ? M.terraceLine : M.floorLine;
+          ctx.strokeRect(x + .5, y + .5, T - 1, T - 1);
+        }
+      }
+    }
+
+    // Giant VISMA floor watermark running up the open-space aisle
+    function drawWatermark() {
+      ctx.save();
+      ctx.translate(9.5 * TILE_SIZE, 9.5 * TILE_SIZE);
+      ctx.rotate(-Math.PI / 2);
+      ctx.fillStyle = theme.map.watermark;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.font = '900 58px system-ui, sans-serif';
+      ctx.fillText('VISMA', 0, 0);
+      const half = ctx.measureText('VISMA').width / 2;
+      ctx.beginPath();
+      ctx.moveTo(half + 14, 14); ctx.lineTo(half + 42, 14); ctx.lineTo(half + 28, -14);
+      ctx.closePath(); ctx.fill();
+      ctx.restore();
+    }
+
+    // Pass 2: furniture and fixtures on top of the ground + watermark
+    function drawFurniture(c, r, v) {
+      const x = c * TILE_SIZE, y = r * TILE_SIZE, T = TILE_SIZE, M = theme.map;
+      switch (v) {
+        case KITCHEN:
+          ctx.fillStyle = M.counter; ctx.fillRect(x + 3, y + 2, T - 6, T - 4);
+          ctx.fillStyle = M.counterDots;
+          ctx.beginPath(); ctx.arc(x + T / 2, y + T / 3, 2, 0, 7); ctx.fill();
+          ctx.beginPath(); ctx.arc(x + T / 2, y + 2 * T / 3, 2, 0, 7); ctx.fill();
+          break;
+        case DESK:
+          ctx.fillStyle = M.desk; ctx.fillRect(x + 2, y + 2, T - 4, T - 4);
+          ctx.fillStyle = M.deskTop; ctx.fillRect(x + 4, y + 4, T - 8, T - 8);
+          break;
+        case TERM: {
+          // A glowing workstation: monitor with live cursor + stand + keyboard
+          ctx.save();
+          ctx.shadowColor = M.termStroke; ctx.shadowBlur = 9;
+          ctx.fillStyle = '#0d0d12';
+          roundedRect(x + 3, y + 2, T - 6, 13, 2); ctx.fill();        // monitor bezel
+          ctx.restore();
+          ctx.fillStyle = M.termFill;
+          roundedRect(x + 4.5, y + 3.5, T - 9, 10, 1.5); ctx.fill();  // screen
+          ctx.fillStyle = M.termStroke;
+          ctx.fillRect(x + 6.5, y + 6, 6, 1.5);                       // code line 1
+          ctx.fillRect(x + 6.5, y + 9, 9, 1.5);                       // code line 2
+          if (blinkOn) ctx.fillRect(x + 6.5, y + 11.2, 3.5, 1.8);     // blinking cursor
+          ctx.fillStyle = '#0d0d12';
+          ctx.fillRect(x + T / 2 - 1.5, y + 15, 3, 2.5);              // stand
+          ctx.fillRect(x + T / 2 - 4.5, y + 17.5, 9, 1.5);            // base
+          roundedRect(x + 4.5, y + 19.5, T - 9, 3.5, 1); ctx.fill();  // keyboard
+          ctx.fillStyle = M.termStroke;
+          ctx.fillRect(x + 6, y + 20.7, T - 12, 1);                   // key row
+          break;
+        }
+        case TABLE:
+          ctx.fillStyle = M.table; roundedRect(x + 2, y + 4, T - 4, T - 8, 4); ctx.fill();
+          ctx.fillStyle = M.tableLeg;
+          ctx.fillRect(x + T / 2 - 2, y, 4, 3); ctx.fillRect(x + T / 2 - 2, y + T - 3, 4, 3);
+          break;
+        case SOFA:
+          ctx.fillStyle = M.sofa; roundedRect(x + 2, y + 5, T - 4, T - 9, 5); ctx.fill();
+          ctx.strokeStyle = M.sofaLine; roundedRect(x + 2, y + 5, T - 4, T - 9, 5); ctx.stroke();
+          break;
+        case PLANT:
+          ctx.font = '13px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('🌿', x + T / 2, y + T / 2);
+          break;
+        case SENSEI: {
+          ctx.save(); ctx.globalAlpha = 0.3;
+          ctx.fillStyle = M.terraceAccent;
+          roundedRect(x + 2, y + 5, T - 4, T - 7, 4); ctx.fill();   // tatami mat
+          ctx.restore();
+          ctx.font = '16px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText('🧘', x + T / 2, y + T / 2 - 1);
+          break;
+        }
+        case LIFT:
+          ctx.strokeStyle = M.lift; ctx.lineWidth = 1.5;
+          ctx.strokeRect(x + 3.5, y + 3.5, T - 7, T - 7);
+          ctx.beginPath();
+          ctx.moveTo(x + 5, y + 5); ctx.lineTo(x + T - 5, y + T - 5);
+          ctx.moveTo(x + T - 5, y + 5); ctx.lineTo(x + 5, y + T - 5);
+          ctx.stroke(); ctx.lineWidth = 1;
+          break;
+      }
+    }
+
+    function drawMap() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const M = theme.map;
+
+      for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) drawGround(c, r, floorMap[r][c]);
+      drawWatermark();
+      for (let r = 0; r < ROWS; r++) for (let c = 0; c < COLS; c++) drawFurniture(c, r, floorMap[r][c]);
+
+      // spiral stair glyph across its 3x3 core
+      const sx = (26 + 1.5) * TILE_SIZE, sy = (1 + 1.5) * TILE_SIZE;
+      ctx.strokeStyle = M.spiral; ctx.lineWidth = 1.5;
+      for (let i = 1; i <= 3; i++) {
+        ctx.beginPath(); ctx.arc(sx, sy, i * 8, i * 0.9, i * 0.9 + 4.6); ctx.stroke();
+      }
+      ctx.lineWidth = 1;
+
+      // labels
+      ctx.font = 'bold 9px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillStyle = M.coreLabel;
+      ctx.fillText('WC · SERVICES', 19 * TILE_SIZE, 8.5 * TILE_SIZE);
+      ctx.fillStyle = M.zoneLabel; ctx.font = '9px monospace';
+      ctx.fillText('OPEN SPACE · 44 PAX', 9.5 * TILE_SIZE, 16.3 * TILE_SIZE);
+      ctx.save();
+      ctx.translate(2.5 * TILE_SIZE, 8 * TILE_SIZE); ctx.rotate(-Math.PI / 2);
+      ctx.fillStyle = M.terraceLabel; ctx.fillText('TERRAÇO · 34 M²', 0, 0);
+      ctx.restore();
+
+      // interactive room overlays
+      redRooms.forEach(room => {
+        const rx = room.x * TILE_SIZE, ry = room.y * TILE_SIZE,
+              rw = room.w * TILE_SIZE, rh = room.h * TILE_SIZE;
+        const accent = room.type === 'terrace' ? M.terraceAccent : M.accent;
+        ctx.strokeStyle = accent; ctx.lineWidth = room.type === 'terrace' ? 1 : 2.5;
+        ctx.setLineDash([5, 4]);
+        ctx.strokeRect(rx + 1, ry + 1, rw - 2, rh - 2);
+        ctx.setLineDash([]); ctx.lineWidth = 1;
+        if (room.type !== 'terrace') {
+          ctx.fillStyle = M.roomFill;
+          ctx.fillRect(rx, ry, rw, rh);
+          ctx.font = '15px monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+          ctx.fillText(room.emoji, rx + rw / 2, ry + rh / 2 - 5);
+          ctx.font = 'bold 7px monospace'; ctx.fillStyle = accent;
+          ctx.fillText(room.name.toUpperCase(), rx + rw / 2, ry + rh / 2 + 8);
+        }
+      });
+
+      // avatar
+      ctx.font = '19px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(player.sprite, player.x * TILE_SIZE + TILE_SIZE / 2, player.y * TILE_SIZE + TILE_SIZE / 2);
+    }
+
+    // ---------- interaction ----------
+    function checkProximity() {
+      let target = null, targetType = '';
+
+      redRooms.forEach(room => {
+        if (player.x >= room.x && player.x < room.x + room.w &&
+            player.y >= room.y && player.y < room.y + room.h) {
+          target = room; targetType = 'room';
+        }
+      });
+      playgroundDesks.forEach(desk => {
+        if (Math.abs(player.x - desk.x) <= 1 && Math.abs(player.y - desk.y) <= 1) {
+          target = desk; targetType = 'desk';
+        }
+      });
+      if (Math.abs(player.x - SENSEI_POS.x) <= 1 && Math.abs(player.y - SENSEI_POS.y) <= 1) {
+        target = { name: 'Prompt Sensei', emoji: '🧘' }; targetType = 'sensei';
+      }
+
+      const changed = !target || !currentTarget ||
+        target.name !== currentTarget.name || targetType !== currentType;
+      currentTarget = target; currentType = targetType;
+
+      const hint = document.getElementById('interact-hint');
+      if (!target) {
+        hint.classList.add('hidden');
+        if (dialogueOpen) closeTerminal();
+        return;
+      }
+      if (dialogueOpen && changed) closeTerminal();
+      if (dialogueOpen) {
+        hint.classList.add('hidden');
+      } else {
+        hint.innerText = `${target.emoji || '🖥'} ${target.name} · [E] interact`;
+        hint.classList.remove('hidden');
+      }
+    }
+
+    function openInteraction() {
+      if (!currentTarget) return;
+      dialogueOpen = true;
+      document.getElementById('interact-hint').classList.add('hidden');
+      const modal = document.getElementById('dialogue-box');
+      modal.classList.remove('hidden'); modal.classList.add('flex');
+      renderInterfaceContent(currentTarget, currentType);
+    }
+
+    function renderInterfaceContent(target, type) {
+      const title = document.getElementById('dialogue-title');
+      const text = document.getElementById('dialogue-text');
+      const options = document.getElementById('dialogue-options');
+      const form = document.getElementById('playground-interface');
+      const output = document.getElementById('playground-output');
+
+      options.innerHTML = '';
+      form.classList.add('hidden'); form.classList.remove('flex');
+      output.classList.add('hidden');
+
+      if (type === 'room') {
+        title.innerText = `${target.emoji} ${target.name}`;
+        text.innerText = target.desc;
+
+        if (target.type === 'lobby') {
+          options.appendChild(makeBtn('👨‍💻 Frontend Task Agent', () => setRole('👨‍💻', 'Frontend Task Agent')));
+          options.appendChild(makeBtn('🕵️ QA Logic Sentinel', () => setRole('🕵️', 'QA Logic Sentinel')));
+          options.appendChild(makeBtn('🧑‍🚀 AI Orchestrator', () => setRole('🧑‍🚀', 'AI Orchestrator')));
+          options.appendChild(makeBtn('🤖 Automation Droid', () => setRole('🤖', 'Automation Droid')));
+        } else if (target.type === 'trial1') {
+          options.appendChild(makeBtn('Dress Archivist skill', () =>
+            mountSkill('The Archivist', 'Release-Notes-Writer.md', 'Messy git + Jira dump → client-ready changelog. Zero missing features, coverage check reconciled.')));
+        } else if (target.type === 'trial2') {
+          options.appendChild(makeBtn('Dress System Scribe skill', () =>
+            mountSkill('The System Scribe', 'Jira-Ticket-Writer.md', 'Brain dumps & transcripts → Ready-for-Dev Gherkin stories. Refuses to hallucinate requirements.')));
+        } else if (target.type === 'trial3') {
+          options.appendChild(makeBtn('Dress Code Sentinel skill', () =>
+            mountSkill('The Code Sentinel', 'PR-Reviewer.md', 'First-pass diff review: logic, security, architecture, tests — never style.')));
+        } else if (target.type === 'bonus') {
+          options.appendChild(makeBtn('Dress Inspector skill', () =>
+            mountSkill('The Inspector', 'Ticket-Tester.md', 'Tickets → traceable test plans. Failures → ready-to-file bug tickets.')));
+        } else if (target.type === 'terrace') {
+          text.innerText = target.desc + '\n\n"May the Intelligence Be With You."';
+        }
+      } else if (type === 'desk') {
+        title.innerText = `🖥 Terminal: ${target.name}`;
+        if (!activeSkill) {
+          text.innerText = '❌ TERMINAL OFFLINE.\n\nEnter a skill room first to equip an agent skill, then come back and compile payloads here.';
+        } else {
+          text.innerText = `✅ PLAYGROUND READY.\nActive agent: ${activeSkill.agent}\nSkill: ${activeSkill.skill}\n\nPaste a messy payload below to test your agent's determinism:`;
+          setPlaygroundForm('skill');
+          form.classList.remove('hidden'); form.classList.add('flex');
+        }
+      } else if (type === 'sensei') {
+        title.innerText = '🧘 Prompt Sensei — Terraço Dojo';
+        text.innerText = 'The sensei opens one eye.\n\n"You seek stronger prompts. Show me your kata — I will name its stage, grade its readiness, and teach one habit. Only one. That is the way."';
+        setPlaygroundForm('sensei');
+        form.classList.remove('hidden'); form.classList.add('flex');
+      }
+    }
+
+    function makeBtn(label, cb) {
+      const b = document.createElement('button');
+      b.className = 'bg-[var(--accent-strong)] hover:bg-[var(--accent)] text-[var(--btn-text)] font-bold text-[10px] px-3 py-1.5 rounded uppercase tracking-wider transition';
+      b.innerText = label;
+      b.onclick = cb;
+      return b;
+    }
+
+    function setRole(sym, className) {
+      player.sprite = sym; player.className = className;
+      document.getElementById('hud-sprite').innerText = sym;
+      document.getElementById('hud-char-class').innerText = className;
+      drawMap();
+    }
+
+    function mountSkill(agent, skill, desc) {
+      activeSkill = { agent, skill, desc };
+      document.getElementById('hud-skill-name').innerText = agent.toUpperCase();
+      document.getElementById('hud-skill-desc').innerText = desc;
+      const file = document.getElementById('hud-skill-file');
+      file.innerText = skill + ' · SKILL_READY';
+      file.classList.remove('hidden');
+      drawMap();
+    }
+
+    function closeTerminal() {
+      dialogueOpen = false;
+      const modal = document.getElementById('dialogue-box');
+      modal.classList.add('hidden'); modal.classList.remove('flex');
+      const hint = document.getElementById('interact-hint');
+      if (currentTarget) {
+        hint.innerText = `${currentTarget.emoji || '🖥'} ${currentTarget.name} · [E] interact`;
+        hint.classList.remove('hidden');
+      }
+    }
+
+    let terminalMode = 'skill';
+    function setPlaygroundForm(mode) {
+      terminalMode = mode;
+      const label = document.getElementById('playground-label');
+      const btn = document.getElementById('playground-run');
+      const input = document.getElementById('playground-input');
+      if (mode === 'sensei') {
+        label.innerText = 'Offer your rough prompt to the sensei:';
+        btn.innerText = '🥋 Seek the sensei\u2019s wisdom';
+        input.placeholder = 'e.g. "fix this test" or "write release notes for my sprint"...';
+      } else {
+        label.innerText = 'Input messy data payload:';
+        btn.innerText = '⚡ Run agentic blueprint evaluation';
+        input.placeholder = 'Paste dirty commits, tickets, diffs or transcripts here...';
+      }
+    }
+
+    // ==== SENSEI_START ====
+    // In-game homage to Prompt Sensei — github.com/chengzhongwei/Prompt-sensei (Apache-2.0).
+    // Deterministic, stage-aware coaching in the spirit and output format of the original.
+    function senseiImprove(raw) {
+      const t = raw.trim();
+      const low = t.toLowerCase();
+      const words = t.split(/\s+/).filter(Boolean).length;
+
+      let stage = 'Exploration';
+      if (words <= 8 && /\b(commit|push|deploy|merge|ship|release)\b/.test(low)) stage = 'Action';
+      else if (/\b(checklist|template|workflow|repeatable|process|skill\.md|rubric)\b/.test(low)) stage = 'Reusable workflow';
+      else if (/\b(verify|edge cases?|test cases|coverage|validate|prove|regression)\b/.test(low)) stage = 'Verification';
+      else if (/\b(expected|actual|error|stack trace|reproduce|logs?|fails? with)\b/.test(low)) stage = 'Diagnosis';
+      else if (/\b(implement|create|write|build|add|fix|refactor|generate|convert|make)\b/.test(low)) stage = 'Execution';
+
+      const checks = [
+        { name: 'role or persona', ok: /\b(you are|act as|as a senior)\b/i.test(t),
+          tip: 'open with who the model should be', when: ['Execution', 'Reusable workflow'],
+          habit: 'Start execution prompts with a role: "You are a senior <X> at Visma..."' },
+        { name: 'context or evidence', ok: words >= 18 || /[\/\\.](js|ts|py|cs|java|log|md)\b|\berror\b|\bexpected\b/i.test(low),
+          tip: 'file paths, error output, the who and why', when: ['Exploration', 'Diagnosis', 'Execution', 'Verification', 'Reusable workflow'],
+          habit: 'Paste the evidence: file path, error output, expected vs actual.' },
+        { name: 'concrete deliverable', ok: /\b(return|output|give me|produce|list|generate|write|draft)\b/i.test(low),
+          tip: 'name the exact thing that must come back', when: ['Diagnosis', 'Execution', 'Verification', 'Reusable workflow'],
+          habit: 'Name the deliverable: what exactly should come back?' },
+        { name: 'output format', ok: /\b(format|markdown|table|json|bullets?|numbered|template|gherkin)\b/i.test(low),
+          tip: 'say what the answer must look like', when: ['Execution', 'Verification', 'Reusable workflow'],
+          habit: 'Specify the shape of the answer: a table, JSON, five bullets.' },
+        { name: 'boundaries', ok: /\b(only|don'?t|do not|never|must|avoid|except|without|max|min|\d+\s*(words|lines|items))\b/i.test(low),
+          tip: 'what to avoid, what not to touch, limits', when: ['Execution', 'Reusable workflow'],
+          habit: 'Set boundaries: what must not change, and how long is too long.' },
+        { name: 'verification step', ok: /\b(tests?|verify|prove|check|acceptance|command to)\b/i.test(low),
+          tip: 'the command, test, or edge case that proves the work', when: ['Execution', 'Verification'],
+          habit: 'End with the command, test, or edge case that proves the work.' },
+      ];
+
+      const applicable = checks.filter(c => c.when.includes(stage));
+      const missing = applicable.filter(c => !c.ok);
+      const score = applicable.length
+        ? Math.round(40 + 60 * ((applicable.length - missing.length) / applicable.length))
+        : 92;
+      const rating = score >= 90 ? 'Excellent' : score >= 70 ? 'Good' : score >= 55 ? 'Getting there' : 'Early days';
+
+      const lacks = n => missing.some(c => c.name === n);
+      const imp = [];
+      if (lacks('role or persona')) imp.push('You are a [senior <role> at Visma].', '');
+      imp.push(t);
+      if (lacks('context or evidence')) imp.push('', 'Context: [file paths / error output / who this is for]');
+      if (lacks('boundaries')) imp.push('Constraints: [what not to touch / length / tone]');
+      const ret = [];
+      if (lacks('concrete deliverable')) ret.push('[the exact deliverable]');
+      if (lacks('output format')) ret.push('[the format: table, JSON, markdown]');
+      if (lacks('verification step')) ret.push('[the command or test that proves it]');
+      if (ret.length) { imp.push('', 'Return:'); ret.forEach((r, i) => imp.push('  ' + (i + 1) + '. ' + r)); }
+
+      const habit = missing.length ? missing[0].habit : 'Keep this one. Teach it to the fleet.';
+
+      return [
+        'Prompt Sensei Improve',
+        '=====================',
+        'Stage:    ' + stage,
+        'Score:    ' + score + ' / 100  (' + rating + ')',
+        '',
+        missing.length ? 'What is missing:' : 'Nothing is missing for this stage. The sensei bows.',
+        ...missing.slice(0, 3).map(c => '  - ' + c.name + ' — ' + c.tip),
+        '',
+        'Improved prompt:',
+        ...imp.map(l => '  ' + l),
+        '',
+        'Habit to practice next:',
+        '  ' + habit,
+        '',
+        '[Sensei: ' + score + '/100 · ' + stage + (missing.length ? '; Tip: ' + missing[0].tip : '') + ']',
+        '',
+        '// dojo homage to github.com/chengzhongwei/Prompt-sensei (Apache-2.0)',
+        '// the real one installs into Claude Code: /prompt-sensei improve "..."',
+      ].join('\n');
+    }
+    // ==== SENSEI_END ====
+
+    // Deterministic demo outputs — one flavor per skill
+    function runSimulator() {
+      const input = document.getElementById('playground-input').value;
+      const out = document.getElementById('playground-output');
+      if (!input.trim()) {
+        out.innerText = terminalMode === 'sensei'
+          ? '! The sensei cannot sharpen an empty blade — offer a prompt first.'
+          : '! Paste a messy payload first — dirty commits, a transcript, a diff...';
+        out.classList.remove('hidden');
+        return;
+      }
+      if (terminalMode === 'sensei') {
+        out.innerText = senseiImprove(input);
+        out.classList.remove('hidden');
+        return;
+      }
+      const n = input.trim().split(/\n/).length;
+      const demos = {
+        'Release-Notes-Writer.md':
+          `> LEDGER: ${n} entr${n === 1 ? 'y' : 'ies'} inventoried, deduplicated\n> FILTER: noise excluded with reason codes\n> COVERAGE: published + excluded + review = ${n} ✓\n> manifest emitted · decisions deterministic ✓`,
+        'Jira-Ticket-Writer.md':
+          `> GATE: minimum information check\n> FACTS: extracted (${n} line${n === 1 ? '' : 's'}) · later overrides earlier\n> AC: Given / When / Then — stated values only\n> READY FOR DEV: NO — blocked on Q1 [blocking]\n> manifest emitted · zero invented requirements ✓`,
+        'PR-Reviewer.md':
+          `> HUNKS REVIEWED: ${Math.max(1, Math.ceil(n / 4))}/${Math.max(1, Math.ceil(n / 4))}\n> SWEEP: correctness → security → architecture → tests\n> F1 [SEVERITY PER RUBRIC] evidence quoted from diff\n> style hunks: ignored (linter scope)\n> VERDICT: computed from rubric · manifest emitted ✓`,
+        'Ticket-Tester.md':
+          `> MODE: ${/error|fail|broken|bug|0 bytes|reject/i.test(input) ? 'bug-report' : 'test-plan'} (selected deterministically)\n> EXPECTATIONS: traced to stated ACs or tagged (confirm)\n> CLASSIFIER: Bug / Requirement gap / Observation\n> manifest emitted · one ticket per distinct failure ✓`,
+      };
+      out.innerText = (demos[activeSkill.skill] || '> OK') +
+        '\n\n// demo output — the real SKILL.md fleet runs in Claude';
+      out.classList.remove('hidden');
+    }
+
+    // ---------- movement ----------
+    function move(dir) {
+      let tx = player.x, ty = player.y;
+      if (dir === 'up') ty--; else if (dir === 'down') ty++;
+      else if (dir === 'left') tx--; else if (dir === 'right') tx++;
+
+      if (tx >= 0 && tx < COLS && ty >= 0 && ty < ROWS && WALKABLE(floorMap[ty][tx])) {
+        player.x = tx; player.y = ty;
+      }
+      drawMap();
+      checkProximity();
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeTerminal();
+        if (e.target && e.target.blur) e.target.blur();
+        return;
+      }
+      // While typing in any field, the keyboard belongs to the text — not the avatar
+      const el = e.target;
+      const tag = ((el && el.tagName) || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || tag === 'select' || (el && el.isContentEditable)) return;
+
+      const k = e.key;
+      if (k === 'ArrowUp' || k === 'w' || k === 'W') { e.preventDefault(); move('up'); }
+      else if (k === 'ArrowDown' || k === 's' || k === 'S') { e.preventDefault(); move('down'); }
+      else if (k === 'ArrowLeft' || k === 'a' || k === 'A') { e.preventDefault(); move('left'); }
+      else if (k === 'ArrowRight' || k === 'd' || k === 'D') { e.preventDefault(); move('right'); }
+      else if (k === 'e' || k === 'E' || k === 'Enter') { e.preventDefault(); openInteraction(); }
+    });
+
+    drawMap();
+    checkProximity();
+    setInterval(() => { blinkOn = !blinkOn; drawMap(); }, 650);
+
+    // ---------- branded loading ----------
+    (function () {
+      const splash = document.getElementById('splash');
+      const bar = document.getElementById('splash-bar');
+      const status = document.getElementById('splash-status');
+      const msgs = [
+        'Booting floor systems…',
+        'Loading the Porto floor plan…',
+        'Calibrating agent skills…',
+        'Watering the terraço plants…',
+        'May the Intelligence Be With You',
+      ];
+      let done = false;
+      window.finishSplash = function () {
+        if (done) return; done = true;
+        splash.style.opacity = '0';
+        setTimeout(() => splash.remove(), 450);
+      };
+      if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        bar.style.width = '100%'; finishSplash(); return;
+      }
+      let p = 0;
+      const t = setInterval(() => {
+        p = Math.min(100, p + 4 + Math.random() * 7);
+        bar.style.width = p + '%';
+        status.textContent = msgs[Math.min(msgs.length - 1, Math.floor(p / (100 / msgs.length)))];
+        if (p >= 100) { clearInterval(t); setTimeout(finishSplash, 300); }
+      }, 95);
+    })();
+
+    // ---------- colour themes ----------
+    function applyTheme(key) {
+      theme = THEMES[key] || THEMES.purple;
+      const root = document.documentElement;
+      Object.entries(theme.ui).forEach(([k, v]) => root.style.setProperty('--' + k, v));
+      document.querySelectorAll('#theme-buttons button').forEach(b =>
+        b.classList.toggle('ring-2', b.dataset.theme === key));
+      try { localStorage.setItem('invicta-theme', key); } catch (e) { /* storage unavailable: no-op */ }
+      drawMap();
+    }
+
+    (function initThemes() {
+      const wrap = document.getElementById('theme-buttons');
+      Object.entries(THEMES).forEach(([key, t]) => {
+        const b = document.createElement('button');
+        b.dataset.theme = key;
+        b.className = 'flex items-center gap-1.5 bg-[var(--btn2)] border border-[var(--line3)] rounded px-2 py-1 text-[9px] uppercase tracking-wider transition ring-[var(--accent-strong)]';
+        b.innerHTML = '<span class="inline-block w-2.5 h-2.5 rounded-full border border-[var(--line3)]" style="background:' + t.swatch + '"></span>' + t.name;
+        b.onclick = () => applyTheme(key);
+        wrap.appendChild(b);
+      });
+      let saved = 'purple';
+      try { saved = localStorage.getItem('invicta-theme') || 'purple'; } catch (e) { /* no-op */ }
+      applyTheme(saved);
+    })();
+  </script>
+</body>
+</html>
