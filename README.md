@@ -16,6 +16,25 @@ Walk the real Visma Porto floor plan, equip the trial skills in the rooms, test 
 
 Start with [SUBMISSION.md](SUBMISSION.md) (the 30-second case), then [README-Skill-Fleet.md](README-Skill-Fleet.md) (architecture) and [TESTING-GUIDE.md](TESTING-GUIDE.md) (eval procedure).
 
+## Run the skills in Claude
+
+**Claude Code — zero install.** The repo ships them as project skills in `.claude/skills/`, so cloning *is* installing:
+
+```
+git clone https://github.com/<username>/invicta-one-phase2.git
+cd invicta-one-phase2 && claude
+```
+
+**Claude Code — everywhere.** `./install.sh` copies the four skills into `~/.claude/skills/` so they load in every project. Restart the session after.
+
+**claude.ai (web/desktop).** Settings → Capabilities → Skills → *Upload skill*, then drag a per-skill zip (or zip any folder from `.claude/skills/`). Requires a paid plan with code execution enabled; uploads are per-user.
+
+**Any plan fallback.** Create a Claude Project and paste a SKILL.md into its project knowledge — every chat in that Project runs with it.
+
+## Optional: live-AI mode for the Prompt Sensei
+
+GitHub Pages is static — an API key committed here would be public. Instead, deploy [sensei-worker.js](sensei-worker.js) to Cloudflare Workers (free tier; the key lives there as a secret, CORS locked to your Pages origin), then set `SENSEI_API_URL` in `index.html`. Without it, the sensei stays fully functional in deterministic rule-based mode.
+
 ## Prove the determinism yourself
 
 ```

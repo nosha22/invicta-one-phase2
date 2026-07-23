@@ -133,6 +133,9 @@
           <button id="playground-run" onclick="runSimulator()" class="bg-[var(--accent-strong)] hover:bg-[var(--accent)] text-[var(--btn-text)] font-bold text-xs py-2 rounded uppercase tracking-wider transition">
             ⚡ Run agentic blueprint evaluation
           </button>
+          <button id="playground-run-ai" onclick="runSenseiAI()" class="hidden bg-[var(--btn2)] border border-[var(--accent-strong)] text-[var(--accent)] font-bold text-xs py-2 rounded uppercase tracking-wider transition">
+            🌩 Deep wisdom (live AI)
+          </button>
           <pre id="playground-output" class="hidden bg-[#101014] border border-[var(--accent-border)] rounded p-2 text-[10px] text-[var(--output-text)] leading-relaxed overflow-x-auto"></pre>
         </div>
 
@@ -253,6 +256,12 @@
     const canvas = document.getElementById('floorCanvas');
     const ctx = canvas.getContext('2d');
     const floorMap = buildMap();
+
+    // Optional AI mode for the Prompt Sensei: deploy sensei-worker.js to
+    // Cloudflare Workers (the API key lives there as a secret — NEVER in this
+    // file, which is public on GitHub Pages), then paste the worker URL here.
+    // Empty string = rule-based sensei only.
+    const SENSEI_API_URL = '';
 
     // Playground terminals are discovered from the map, west-to-east, north-to-south
     const stationNames = ['Alpha', 'Beta', 'Gamma', 'Delta'];
@@ -663,10 +672,12 @@
         label.innerText = 'Offer your rough prompt to the sensei:';
         btn.innerText = '🥋 Seek the sensei\u2019s wisdom';
         input.placeholder = 'e.g. "fix this test" or "write release notes for my sprint"...';
+        document.getElementById('playground-run-ai').classList.toggle('hidden', !SENSEI_API_URL);
       } else {
         label.innerText = 'Input messy data payload:';
         btn.innerText = '⚡ Run agentic blueprint evaluation';
         input.placeholder = 'Paste dirty commits, tickets, diffs or transcripts here...';
+        document.getElementById('playground-run-ai').classList.add('hidden');
       }
     }
 
@@ -749,6 +760,35 @@
       ].join('\n');
     }
     // ==== SENSEI_END ====
+
+    async function runSenseiAI() {
+      const input = document.getElementById('playground-input').value;
+      const out = document.getElementById('playground-output');
+      const btn = document.getElementById('playground-run-ai');
+      out.classList.remove('hidden');
+      if (!input.trim()) {
+        out.innerText = '! The sensei cannot sharpen an empty blade — offer a prompt first.';
+        return;
+      }
+      btn.disabled = true;
+      out.innerText = 'The sensei closes his eyes and consults the clouds…';
+      try {
+        const r = await fetch(SENSEI_API_URL, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ prompt: input }),
+        });
+        if (!r.ok) throw new Error('worker replied ' + r.status);
+        const data = await r.json();
+        out.innerText = (data.text || 'The clouds were silent.') +
+          '\n\n// live AI mode — via your Cloudflare Worker proxy';
+      } catch (err) {
+        out.innerText = '! The path to the clouds is blocked (' + err.message + ').' +
+          '\nFalling back to the dojo rules:\n\n' + senseiImprove(input);
+      } finally {
+        btn.disabled = false;
+      }
+    }
 
     // Deterministic demo outputs — one flavor per skill
     function runSimulator() {
