@@ -261,7 +261,7 @@
     // Cloudflare Workers (the API key lives there as a secret — NEVER in this
     // file, which is public on GitHub Pages), then paste the worker URL here.
     // Empty string = rule-based sensei only.
-    const SENSEI_API_URL = 'https://prompt-sensei.sergio-m-cruz.workers.dev';
+    const SENSEI_API_URL = '';
 
     // Playground terminals are discovered from the map, west-to-east, north-to-south
     const stationNames = ['Alpha', 'Beta', 'Gamma', 'Delta'];
@@ -668,16 +668,19 @@
       const label = document.getElementById('playground-label');
       const btn = document.getElementById('playground-run');
       const input = document.getElementById('playground-input');
+      const btnAI = document.getElementById('playground-run-ai');
       if (mode === 'sensei') {
         label.innerText = 'Offer your rough prompt to the sensei:';
+        btnAI.innerText = '🌩 Deep wisdom (live AI)';
+        btnAI.classList.toggle('hidden', !SENSEI_API_URL);
         btn.innerText = '🥋 Seek the sensei\u2019s wisdom';
         input.placeholder = 'e.g. "fix this test" or "write release notes for my sprint"...';
-        document.getElementById('playground-run-ai').classList.toggle('hidden', !SENSEI_API_URL);
       } else {
         label.innerText = 'Input messy data payload:';
+        btnAI.innerText = '🤖 Run skill on live AI';
+        btnAI.classList.toggle('hidden', !SENSEI_API_URL);
         btn.innerText = '⚡ Run agentic blueprint evaluation';
         input.placeholder = 'Paste dirty commits, tickets, diffs or transcripts here...';
-        document.getElementById('playground-run-ai').classList.add('hidden');
       }
     }
 
@@ -771,20 +774,28 @@
         return;
       }
       btn.disabled = true;
-      out.innerText = 'The sensei closes his eyes and consults the clouds…';
+      const body = { prompt: input };
+      if (terminalMode === 'skill') {
+        body.skill = activeSkill.skill.replace('.md', '').toLowerCase();
+        out.innerText = '🤖 ' + activeSkill.agent + ' compiles the payload on live AI…';
+      } else {
+        out.innerText = 'The sensei closes his eyes and consults the clouds…';
+      }
       try {
         const r = await fetch(SENSEI_API_URL, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ prompt: input }),
+          body: JSON.stringify(body),
         });
         if (!r.ok) throw new Error('worker replied ' + r.status);
         const data = await r.json();
         out.innerText = (data.text || 'The clouds were silent.') +
           '\n\n// live AI mode — via your Cloudflare Worker proxy';
       } catch (err) {
-        out.innerText = '! The path to the clouds is blocked (' + err.message + ').' +
-          '\nFalling back to the dojo rules:\n\n' + senseiImprove(input);
+        const fallback = terminalMode === 'skill'
+          ? 'Deterministic demo instead:\n\n' + skillDemo(input)
+          : 'Falling back to the dojo rules:\n\n' + senseiImprove(input);
+        out.innerText = '! The path to the clouds is blocked (' + err.message + ').\n' + fallback;
       } finally {
         btn.disabled = false;
       }
@@ -806,6 +817,11 @@
         out.classList.remove('hidden');
         return;
       }
+      out.innerText = skillDemo(input);
+      out.classList.remove('hidden');
+    }
+
+    function skillDemo(input) {
       const n = input.trim().split(/\n/).length;
       const demos = {
         'Release-Notes-Writer.md':
@@ -817,9 +833,8 @@
         'Ticket-Tester.md':
           `> MODE: ${/error|fail|broken|bug|0 bytes|reject/i.test(input) ? 'bug-report' : 'test-plan'} (selected deterministically)\n> EXPECTATIONS: traced to stated ACs or tagged (confirm)\n> CLASSIFIER: Bug / Requirement gap / Observation\n> manifest emitted · one ticket per distinct failure ✓`,
       };
-      out.innerText = (demos[activeSkill.skill] || '> OK') +
+      return (demos[activeSkill.skill] || '> OK') +
         '\n\n// demo output — the real SKILL.md fleet runs in Claude';
-      out.classList.remove('hidden');
     }
 
     // ---------- movement ----------
