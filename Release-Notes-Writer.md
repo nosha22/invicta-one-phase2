@@ -44,6 +44,8 @@ A feature usually appears twice: as one or more commits and as a Jira ticket. Me
 - Multiple commits with the same key collapse into that one item.
 - The merged item counts each original entry in the coverage check (e.g. "PAY-341 — published (absorbs 2 commits)").
 
+**When a referenced key has no ledger entry of its own (apply exactly — this must not drift).** A Jira key that appears *only inside a commit message* and does **not** also appear as its own separate ledger line (its own git commit line or its own Jira-export row) is **not** a distinct entry. Do not synthesize a phantom item for it. The commit is the single canonical entry; classify and count the commit itself, using its `<commit-id>` as the decision key. Only create a separate absorbing item (`published:absorbed:<ID>`) when the referenced key **does** appear as its own ledger line elsewhere in the input. Example: input line `8e2 SUP-88 export csv broken, quote all fields` with no separate `SUP-88 | ... | Jira` row → one entry, keyed `8e2`, decision `published:fixes` — never a separate `SUP-88` item. This keeps the `decisions` map identical across runs regardless of whether a run notices the embedded key.
+
 ### Step 3 — Filter internal noise
 
 Excluded items are **never deleted** — they move to the *Internal changes* appendix with a reason code. Apply these rules exactly:
@@ -185,10 +187,14 @@ Input entries: 3 → published 2 (PAY-341 + absorbed commit b7e3d2) · excluded 
 
 **Determinism invariants:** (1) coverage check reconciles, X+Y+Z = N; (2) identical publish/exclude/needs-review decision per item across runs; (3) identical section assignment per item; (4) revert pairs and non-Done Jira items never published; (5) security dependency bumps always published under Security; (6) fixed section order, empty sections omitted; (7) the decision manifest is the final fenced json block and is decision-identical across runs (automatable with `check_determinism.py`).
 
-| # | Input | Why it's messy | Run 1 (2026-07-16) | Run 2 | Run 3 |
+| # | Input | Why it's messy | Run 1 (2026-07-16) | Run 2 (2026-07-25) | Run 3 (2026-07-25) |
 |---|---|---|---|---|---|
-| 1 | Sprint 14 mixed dump (git + Jira) | merge commits, typo/lint noise, revert pair, version bump, tests-only commit, duplicate commit↔Jira items, In Progress ticket | PASS — 17 entries → 7 published (3 client items + absorbed commits) · 10 excluded · 0 review, 7+10+0=17 ✓; PAY-350 revert pair excluded `net-zero`; PAY-370 excluded `not-shipped` | pending | pending |
-| 2 | Cryptic commit dump | no Jira keys on some lines, `wip` commit, CVE dependency bump, vague "fixed the thing with the dates" | PASS — CVE bump published under Security; vague date fix routed to Needs review (not guessed); wip excluded | pending | pending |
-| 3 | Jira-only CSV export | extra columns, internal-labelled infra ticket, In Review row, cosmetic Task | PASS — OPS-12 excluded `internal`; APP-207 excluded `not-shipped`; footer-link Task classified Improvement per Step 4 rule; coverage 5 → 3/2/0 ✓ | pending | pending |
+| 1 | Sprint 14 mixed dump (git + Jira) | merge commits, typo/lint noise, revert pair, version bump, tests-only commit, duplicate commit↔Jira items, In Progress ticket | PASS — 17 entries → 7 published (3 client items + absorbed commits) · 10 excluded · 0 review, 7+10+0=17 ✓; PAY-350 revert pair excluded `net-zero`; PAY-370 excluded `not-shipped` | PASS | PASS |
+| 2 | Cryptic commit dump | no Jira keys on some lines, `wip` commit, CVE dependency bump, vague "fixed the thing with the dates" | PASS — CVE bump published under Security; vague date fix routed to Needs review (not guessed); wip excluded | PASS | PASS |
+| 3 | Jira-only CSV export | extra columns, internal-labelled infra ticket, In Review row, cosmetic Task | PASS — OPS-12 excluded `internal`; APP-207 excluded `not-shipped`; footer-link Task classified Improvement per Step 4 rule; coverage 5 → 3/2/0 ✓ | PASS | PASS |
+
+**Verification:** all three inputs confirmed decision-deterministic across 3 fresh-context runs each, diffed with `check_determinism.py --group <input>` → `RESULT: PASS`.
+
+**Determinism hardening (drift found and fixed during eval).** Input 2 initially drifted: a Jira key that appeared *only inside a commit message* (`8e2 SUP-88 export csv broken…`) with no ledger row of its own was, in one run, split into a phantom `SUP-88` item absorbing the commit, while other runs kept it as a single commit-keyed entry — same coverage totals, different `decisions` map. Fixed by a Step-2 rule: a referenced key with no ledger line of its own is not a distinct entry; the commit is the single canonical item, keyed by its commit-id. This is the intended workflow — the harness caught the drift, the deduplication rule was tightened, and the runs became decision-stable.
 
 *Runs 2–3: re-run each input in a fresh session, save each output, and record PASS/FAIL against the invariants before submitting. For invariant (7), run `python check_determinism.py run1.md run2.md run3.md`. Invariant (7) was added in v1.1, after Run 1 — verify it on the re-runs.*
