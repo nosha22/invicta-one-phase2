@@ -22,7 +22,7 @@
  * absent. Setting both is what buys the redundancy.
  */
 
-const GEMINI_MODEL = "gemini-2.5-flash";       // primary: generous + obedient
+const GEMINI_MODEL = "gemini-2.0-flash";         // stable, non-thinking, available to new keys
 const GROQ_MODEL = "openai/gpt-oss-120b";      // fallback
 const MAX_PROMPT_CHARS = 4000;
 const DEFAULT_REPO_RAW = "https://raw.githubusercontent.com/nosha22/invicta-one-phase2/main";
@@ -94,10 +94,13 @@ async function callGemini(key, system, user, maxTokens) {
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: system }] },
       contents: [{ role: "user", parts: [{ text: user }] }],
-      generationConfig: { temperature: 0.1, maxOutputTokens: maxTokens },
+      generationConfig: { temperature: 0.1, maxOutputTokens: Math.min(maxTokens + 2000, 8192) },
     }),
   });
-  if (!resp.ok) throw new Error(`gemini ${resp.status}`);
+  if (!resp.ok) {
+    const detail = (await resp.text()).slice(0, 120);
+    throw new Error(`gemini ${resp.status}: ${detail}`);
+  }
   const data = await resp.json();
   const text = data.candidates?.[0]?.content?.parts?.map((p) => p.text).join("") || "";
   if (!text) throw new Error("gemini empty");
@@ -110,7 +113,7 @@ async function callGroq(key, system, user, maxTokens) {
     headers: { Authorization: `Bearer ${key}`, "content-type": "application/json" },
     body: JSON.stringify({
       model: GROQ_MODEL,
-      max_tokens: maxTokens,
+      max_tokens: Math.min(maxTokens, 1024),
       temperature: 0.1,
       messages: [
         { role: "system", content: system },
@@ -120,7 +123,8 @@ async function callGroq(key, system, user, maxTokens) {
   });
   if (!resp.ok) throw new Error(`groq ${resp.status}`);
   const data = await resp.json();
-  const text = data.choices?.[0]?.message?.content || "";
+  const msg = data.choices?.[0]?.message || {};
+  const text = msg.content || msg.reasoning || "";
   if (!text) throw new Error("groq empty");
   return text;
 }

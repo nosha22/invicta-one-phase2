@@ -120,7 +120,7 @@
       </div>
 
       <!-- Dialogue / terminal overlay -->
-      <div id="dialogue-box" class="absolute bottom-6 left-6 right-6 bg-black/95 border-2 border-[var(--accent-strong)] p-4 rounded-lg hidden flex-col justify-between z-10">
+      <div id="dialogue-box" class="absolute bottom-6 left-6 right-6 bg-black/95 border-2 border-[var(--accent-strong)] p-4 rounded-lg hidden flex-col justify-between z-10 max-h-[80%] overflow-auto">
         <div class="flex justify-between items-start">
           <h3 id="dialogue-title" class="text-xs font-bold text-[var(--accent)] uppercase tracking-wider">Interface Terminal</h3>
           <button onclick="closeTerminal()" class="text-xs text-[var(--text-dim)] hover:text-white uppercase">[Close]</button>
@@ -136,7 +136,7 @@
           <button id="playground-run-ai" onclick="runSenseiAI()" class="hidden bg-[var(--btn2)] border border-[var(--accent-strong)] text-[var(--accent)] font-bold text-xs py-2 rounded uppercase tracking-wider transition">
             🌩 Deep wisdom (live AI)
           </button>
-          <pre id="playground-output" class="hidden bg-[#101014] border border-[var(--accent-border)] rounded p-2 text-[10px] text-[var(--output-text)] leading-relaxed overflow-x-auto"></pre>
+          <pre id="playground-output" class="hidden bg-[#101014] border border-[var(--accent-border)] rounded p-2 text-[10px] text-[var(--output-text)] leading-relaxed overflow-auto max-h-56 whitespace-pre-wrap break-words"></pre>
         </div>
 
         <div id="dialogue-options" class="flex flex-wrap gap-2 mt-3 justify-end"></div>
