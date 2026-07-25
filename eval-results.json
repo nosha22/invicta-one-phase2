@@ -48,22 +48,22 @@
       "skill": "PR-Reviewer",
       "input": "Input 1 — defects + style noise",
       "runs": 3,
-      "status": "PENDING",
-      "note": ""
+      "status": "PASS",
+      "note": "line-number noise + tests-severity hardened"
     },
     {
       "skill": "PR-Reviewer",
       "input": "Input 2 — unprotected endpoint",
       "runs": 3,
-      "status": "PENDING",
-      "note": ""
+      "status": "PASS",
+      "note": "missing-tests severity pinned to domain"
     },
     {
       "skill": "PR-Reviewer",
       "input": "Input 3 — clean diff",
       "runs": 3,
-      "status": "PENDING",
-      "note": ""
+      "status": "PASS",
+      "note": "clean diff → LGTM, zero invented findings"
     },
     {
       "skill": "Ticket-Tester",
