@@ -137,6 +137,12 @@
             🌩 Deep wisdom (live AI)
           </button>
           <pre id="playground-output" class="hidden bg-[#101014] border border-[var(--accent-border)] rounded p-2 text-[10px] text-[var(--output-text)] leading-relaxed overflow-auto max-h-56 whitespace-pre-wrap break-words"></pre>
+          <div id="output-actions" class="hidden flex-wrap gap-1.5 mt-1">
+            <button onclick="copyOutput(this)" class="bg-[var(--btn2)] border border-[var(--line3)] text-[var(--text-main)] text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded transition">📋 Copy</button>
+            <button onclick="exportOutput('txt')" class="bg-[var(--btn2)] border border-[var(--line3)] text-[var(--text-main)] text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded transition">⬇ TXT</button>
+            <button onclick="exportOutput('csv')" class="bg-[var(--btn2)] border border-[var(--line3)] text-[var(--text-main)] text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded transition">⬇ CSV</button>
+            <button onclick="exportOutput('pdf')" class="bg-[var(--btn2)] border border-[var(--line3)] text-[var(--text-main)] text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded transition">⬇ PDF</button>
+          </div>
         </div>
 
         <div id="dialogue-options" class="flex flex-wrap gap-2 mt-3 justify-end"></div>
@@ -252,6 +258,98 @@
         desc: '34 m² of Porto air. A sensei meditates at the north end — bring him a rough prompt.' },
     ];
     // ==== PURE_MAP_END ====
+
+    // ---- output export helpers ----
+    function revealOutputActions() {
+      const pre = document.getElementById('playground-output');
+      const bar = document.getElementById('output-actions');
+      if (!bar) return;
+      const has = pre.innerText.trim().length > 0 && !pre.classList.contains('hidden');
+      bar.classList.toggle('hidden', !has);
+      bar.classList.toggle('flex', has);
+    }
+    // keep the action bar in sync whenever the output text changes
+    (function () {
+      const pre = document.getElementById('playground-output');
+      if (!pre) return;
+      const obs = new MutationObserver(revealOutputActions);
+      obs.observe(pre, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['class'] });
+    })();
+
+    function outputFilenameBase() {
+      const skill = (typeof activeSkill !== 'undefined' && activeSkill && activeSkill.skill)
+        ? activeSkill.skill.replace('.md', '') : 'invicta-output';
+      const d = new Date().toISOString().slice(0, 10);
+      return `${skill}-${d}`;
+    }
+
+    function copyOutput(btn) {
+      const text = document.getElementById('playground-output').innerText;
+      navigator.clipboard.writeText(text).then(() => {
+        const old = btn.innerText; btn.innerText = '✓ Copied';
+        setTimeout(() => { btn.innerText = old; }, 1500);
+      }).catch(() => {
+        // Fallback for older browsers / non-secure contexts
+        const ta = document.createElement('textarea');
+        ta.value = text; document.body.appendChild(ta); ta.select();
+        try { document.execCommand('copy'); } catch (e) {}
+        document.body.removeChild(ta);
+        const old = btn.innerText; btn.innerText = '✓ Copied';
+        setTimeout(() => { btn.innerText = old; }, 1500);
+      });
+    }
+
+    function triggerDownload(blob, filename) {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = filename;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    // Turn a changelog-style output into rows; fall back to one row per line.
+    function outputToCsv(text) {
+      const rows = [['section', 'item']];
+      let section = '';
+      let matched = false;
+      text.split(/\r?\n/).forEach((line) => {
+        const h = line.match(/^#+\s+(.*)/) || line.match(/^##?\s*(.*)/);
+        const sec = line.match(/^#{1,3}\s+(.+)/);
+        const bullet = line.match(/^\s*[-*]\s+(.*)/);
+        if (sec) { section = sec[1].replace(/\*\*/g, '').trim(); return; }
+        if (bullet) { rows.push([section, bullet[1].replace(/\*\*/g, '').trim()]); matched = true; }
+      });
+      if (!matched) {
+        rows.length = 1;
+        text.split(/\r?\n/).filter(l => l.trim()).forEach(l => rows.push(['', l.trim()]));
+      }
+      return rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\r\n');
+    }
+
+    function exportOutput(kind) {
+      const text = document.getElementById('playground-output').innerText;
+      if (!text.trim()) return;
+      const base = outputFilenameBase();
+      if (kind === 'txt') {
+        triggerDownload(new Blob([text], { type: 'text/plain;charset=utf-8' }), base + '.txt');
+      } else if (kind === 'csv') {
+        triggerDownload(new Blob([outputToCsv(text)], { type: 'text/csv;charset=utf-8' }), base + '.csv');
+      } else if (kind === 'pdf') {
+        // Dependency-free PDF: open a print window scoped to the output, user saves as PDF.
+        const w = window.open('', '_blank');
+        if (!w) { alert('Allow pop-ups to export PDF, or use TXT.'); return; }
+        const esc = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        w.document.write(
+          '<!doctype html><html><head><meta charset="utf-8"><title>' + base + '</title>' +
+          '<style>body{font:12px/1.5 ui-monospace,Menlo,Consolas,monospace;color:#111;padding:32px;white-space:pre-wrap;word-break:break-word}' +
+          'h1{font:600 14px sans-serif;color:#7F56FA;border-bottom:2px solid #7F56FA;padding-bottom:6px}</style></head>' +
+          '<body><h1>Invicta-One \u00b7 ' + base + '</h1>' + esc + '</body></html>'
+        );
+        w.document.close();
+        w.focus();
+        setTimeout(() => { w.print(); }, 300);
+      }
+    }
 
     const canvas = document.getElementById('floorCanvas');
     const ctx = canvas.getContext('2d');
