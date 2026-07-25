@@ -1,0 +1,18 @@
+{
+  "note": "Official determinism eval results — run in fresh Claude sessions, verified with check_determinism.py. Update by editing this file and pushing.",
+  "updated": "2026-07-25",
+  "results": [
+    { "skill": "Jira-Ticket-Writer", "input": "Input 1 — vague brain dump", "runs": 3, "status": "PASS", "note": "assumptions rule hardened after drift" },
+    { "skill": "Jira-Ticket-Writer", "input": "Input 2 — SEPA transcript", "runs": 3, "status": "PENDING", "note": "" },
+    { "skill": "Jira-Ticket-Writer", "input": "Input 3 — below gate", "runs": 3, "status": "PENDING", "note": "" },
+    { "skill": "Release-Notes-Writer", "input": "Input 1 — mixed dump", "runs": 3, "status": "PENDING", "note": "" },
+    { "skill": "Release-Notes-Writer", "input": "Input 2 — cryptic commits", "runs": 3, "status": "PENDING", "note": "" },
+    { "skill": "Release-Notes-Writer", "input": "Input 3 — Jira CSV", "runs": 3, "status": "PENDING", "note": "" },
+    { "skill": "PR-Reviewer", "input": "Input 1 — defects + style noise", "runs": 3, "status": "PENDING", "note": "" },
+    { "skill": "PR-Reviewer", "input": "Input 2 — unprotected endpoint", "runs": 3, "status": "PENDING", "note": "" },
+    { "skill": "PR-Reviewer", "input": "Input 3 — clean diff", "runs": 3, "status": "PENDING", "note": "" },
+    { "skill": "Ticket-Tester", "input": "Input 1 — test plan", "runs": 3, "status": "PENDING", "note": "" },
+    { "skill": "Ticket-Tester", "input": "Input 2 — QA notes", "runs": 3, "status": "PENDING", "note": "" },
+    { "skill": "Ticket-Tester", "input": "Input 3 — complaint email", "runs": 3, "status": "PENDING", "note": "" }
+  ]
+}

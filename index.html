@@ -97,6 +97,28 @@
         <div class="text-[10px] text-[var(--text-dim)] uppercase mb-1.5">Colour theme</div>
         <div id="theme-buttons" class="flex flex-wrap gap-1.5 text-[var(--text-main)]"></div>
       </div>
+
+      <button onclick="openEvalPanel()" class="bg-[var(--accent-strong)] hover:bg-[var(--accent)] text-[var(--btn-text)] font-bold text-[10px] uppercase tracking-wider px-3 py-2 rounded transition">
+        📊 Eval Log
+      </button>
+    </div>
+
+    <!-- Eval Log overlay -->
+    <div id="eval-panel" class="hidden fixed inset-0 z-50 bg-black/80 items-center justify-center p-4" onclick="if(event.target===this)closeEvalPanel()">
+      <div class="bg-[var(--panel2)] border-2 border-[var(--accent-strong)] rounded-xl max-w-3xl w-full max-h-[85vh] overflow-auto p-5">
+        <div class="flex justify-between items-center border-b border-[var(--line2)] pb-2 mb-3">
+          <h2 class="text-sm font-black text-[var(--accent)] uppercase tracking-wider">📊 Determinism Eval Log</h2>
+          <button onclick="closeEvalPanel()" class="text-xs text-[var(--text-dim)] hover:text-[var(--text-main)] uppercase">[Close]</button>
+        </div>
+
+        <h3 class="text-[11px] font-bold text-[var(--text-main)] uppercase mb-1">Official results <span id="eval-updated" class="text-[var(--text-dim)] normal-case font-normal"></span></h3>
+        <p class="text-[10px] text-[var(--text-dim)] mb-2">Run in fresh Claude sessions, verified with <code>check_determinism.py</code>.</p>
+        <div id="eval-official" class="text-[10px] overflow-x-auto mb-5">Loading…</div>
+
+        <h3 class="text-[11px] font-bold text-[var(--text-main)] uppercase mb-1">Your live session <span class="text-[var(--text-dim)] normal-case font-normal">— what you ran at the terminals just now</span></h3>
+        <p class="text-[10px] text-[var(--text-dim)] mb-2">Runs stay in this browser tab only. Run the same skill twice to see a determinism check.</p>
+        <div id="eval-session" class="text-[10px] overflow-x-auto">Nothing run yet — equip a skill and use a 🖥 terminal.</div>
+      </div>
     </div>
 
     <!-- CENTER & RIGHT: Floor canvas -->
@@ -258,6 +280,100 @@
         desc: '34 m² of Porto air. A sensei meditates at the north end — bring him a rough prompt.' },
     ];
     // ==== PURE_MAP_END ====
+
+    // ---- eval log: official table + live session tracking ----
+    const evalSession = [];  // { skill, ok, manifest, ts } — this tab only
+
+    function extractManifest(text) {
+      const m = [...text.matchAll(/```json\s*\n([\s\S]*?)```/g)];
+      if (!m.length) return null;
+      try { return JSON.parse(m[m.length - 1][1]); } catch (e) { return null; }
+    }
+
+    function recordSessionRun(skillName, outputText) {
+      const manifest = extractManifest(outputText);
+      const ok = !!manifest;
+      // determinism: compare against a previous run of the SAME skill this session
+      const prev = evalSession.filter(r => r.skill === skillName && r.manifest);
+      let determinism = '—';
+      if (ok && prev.length) {
+        const a = JSON.stringify(sortObj(manifest));
+        const b = JSON.stringify(sortObj(prev[prev.length - 1].manifest));
+        determinism = a === b ? 'match ✓' : 'differs ✗';
+      }
+      evalSession.push({ skill: skillName, ok, manifest, determinism, ts: new Date() });
+      renderSession();
+    }
+
+    function sortObj(o) {
+      if (Array.isArray(o)) return o.map(sortObj);
+      if (o && typeof o === 'object') {
+        return Object.keys(o).sort().reduce((acc, k) => { acc[k] = sortObj(o[k]); return acc; }, {});
+      }
+      return o;
+    }
+
+    function badge(txt, kind) {
+      const c = kind === 'pass' ? 'bg-green-500/20 text-green-400 border-green-500/40'
+        : kind === 'fail' ? 'bg-red-500/20 text-red-400 border-red-500/40'
+        : kind === 'pending' ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/40'
+        : 'bg-[var(--btn2)] text-[var(--text-dim)] border-[var(--line3)]';
+      return `<span class="inline-block border rounded px-1.5 py-0.5 text-[9px] font-bold uppercase ${c}">${txt}</span>`;
+    }
+
+    function tableShell(headers, rows) {
+      const th = headers.map(h => `<th class="text-left font-bold text-[var(--text-dim)] uppercase pb-1 pr-3">${h}</th>`).join('');
+      return `<table class="w-full border-collapse"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    async function loadOfficial() {
+      const el = document.getElementById('eval-official');
+      try {
+        const r = await fetch('eval-results.json', { cache: 'no-cache' });
+        const data = await r.json();
+        document.getElementById('eval-updated').innerText = '· updated ' + (data.updated || '');
+        const rows = data.results.map(x => {
+          const k = x.status === 'PASS' ? 'pass' : x.status === 'FAIL' ? 'fail' : 'pending';
+          return `<tr class="border-t border-[var(--line2)]">
+            <td class="py-1 pr-3 text-[var(--text-main)]">${x.skill}</td>
+            <td class="py-1 pr-3 text-[var(--text-dim)]">${x.input}</td>
+            <td class="py-1 pr-3">${x.runs}×</td>
+            <td class="py-1 pr-3">${badge(x.status, k)}</td>
+            <td class="py-1 text-[var(--text-dim)]">${x.note || ''}</td></tr>`;
+        }).join('');
+        el.innerHTML = tableShell(['Skill', 'Input', 'Runs', 'Status', 'Note'], rows);
+      } catch (e) {
+        el.innerHTML = '<span class="text-[var(--text-dim)]">Could not load eval-results.json (add it to the repo root).</span>';
+      }
+    }
+
+    function renderSession() {
+      const el = document.getElementById('eval-session');
+      if (!evalSession.length) {
+        el.innerHTML = 'Nothing run yet — equip a skill and use a 🖥 terminal.';
+        return;
+      }
+      const rows = evalSession.map((r, i) => {
+        const dk = r.determinism.includes('✓') ? 'pass' : r.determinism.includes('✗') ? 'fail' : 'neutral';
+        return `<tr class="border-t border-[var(--line2)]">
+          <td class="py-1 pr-3 text-[var(--text-dim)]">#${i + 1}</td>
+          <td class="py-1 pr-3 text-[var(--text-main)]">${r.skill}</td>
+          <td class="py-1 pr-3">${badge(r.ok ? 'manifest ✓' : 'no manifest', r.ok ? 'pass' : 'fail')}</td>
+          <td class="py-1 pr-3">${badge(r.determinism, dk)}</td>
+          <td class="py-1 text-[var(--text-dim)]">${r.ts.toLocaleTimeString()}</td></tr>`;
+      }).join('');
+      el.innerHTML = tableShell(['#', 'Skill', 'Output', 'Vs. previous', 'Time'], rows);
+    }
+
+    function openEvalPanel() {
+      const p = document.getElementById('eval-panel');
+      p.classList.remove('hidden'); p.classList.add('flex');
+      loadOfficial(); renderSession();
+    }
+    function closeEvalPanel() {
+      const p = document.getElementById('eval-panel');
+      p.classList.add('hidden'); p.classList.remove('flex');
+    }
 
     // ---- output export helpers ----
     function revealOutputActions() {
@@ -889,6 +1005,9 @@
         const data = await r.json();
         out.innerText = (data.text || 'The clouds were silent.') +
           '\n\n// live AI mode — via your Cloudflare Worker proxy';
+        if (terminalMode === 'skill' && activeSkill) {
+          recordSessionRun(activeSkill.agent, data.text || '');
+        }
       } catch (err) {
         const fallback = terminalMode === 'skill'
           ? 'Deterministic demo instead:\n\n' + skillDemo(input)
