@@ -42,7 +42,7 @@
       "input": "Input 3 — Jira CSV",
       "runs": 3,
       "status": "PASS",
-      "note": ""
+      "note": "OPS-12 excluded internal, APP-207 not-shipped; 5→3/2/0"
     },
     {
       "skill": "PR-Reviewer",
