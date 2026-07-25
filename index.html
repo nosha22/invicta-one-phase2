@@ -286,13 +286,18 @@
 
     function extractManifest(text) {
       const m = [...text.matchAll(/```json\s*\n([\s\S]*?)```/g)];
-      if (!m.length) return null;
-      try { return JSON.parse(m[m.length - 1][1]); } catch (e) { return null; }
+      if (!m.length) {
+        // an opening ```json with no closing fence = truncated output
+        if (/```json\s*\n/.test(text)) return { __truncated: true };
+        return null;
+      }
+      try { return JSON.parse(m[m.length - 1][1]); } catch (e) { return { __truncated: true }; }
     }
 
     function recordSessionRun(skillName, outputText) {
       const manifest = extractManifest(outputText);
-      const ok = !!manifest;
+      const truncated = manifest && manifest.__truncated;
+      const ok = !!manifest && !truncated;
       // determinism: compare against a previous run of the SAME skill this session
       const prev = evalSession.filter(r => r.skill === skillName && r.manifest);
       let determinism = '—';
@@ -301,7 +306,7 @@
         const b = JSON.stringify(sortObj(prev[prev.length - 1].manifest));
         determinism = a === b ? 'match ✓' : 'differs ✗';
       }
-      evalSession.push({ skill: skillName, ok, manifest, determinism, ts: new Date() });
+      evalSession.push({ skill: skillName, ok, truncated, manifest: ok ? manifest : null, determinism, ts: new Date() });
       renderSession();
     }
 
@@ -358,7 +363,7 @@
         return `<tr class="border-t border-[var(--line2)]">
           <td class="py-1 pr-3 text-[var(--text-dim)]">#${i + 1}</td>
           <td class="py-1 pr-3 text-[var(--text-main)]">${r.skill}</td>
-          <td class="py-1 pr-3">${badge(r.ok ? 'manifest ✓' : 'no manifest', r.ok ? 'pass' : 'fail')}</td>
+          <td class="py-1 pr-3">${badge(r.ok ? 'manifest ✓' : (r.truncated ? 'truncated ⚠' : 'no manifest'), r.ok ? 'pass' : (r.truncated ? 'pending' : 'fail'))}</td>
           <td class="py-1 pr-3">${badge(r.determinism, dk)}</td>
           <td class="py-1 text-[var(--text-dim)]">${r.ts.toLocaleTimeString()}</td></tr>`;
       }).join('');
