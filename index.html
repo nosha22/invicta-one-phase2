@@ -1044,19 +1044,160 @@
     }
 
     function skillDemo(input) {
-      const n = input.trim().split(/\n/).length;
-      const demos = {
-        'Release-Notes-Writer.md':
-          `> LEDGER: ${n} entr${n === 1 ? 'y' : 'ies'} inventoried, deduplicated\n> FILTER: noise excluded with reason codes\n> COVERAGE: published + excluded + review = ${n} ✓\n> manifest emitted · decisions deterministic ✓`,
-        'Jira-Ticket-Writer.md':
-          `> GATE: minimum information check\n> FACTS: extracted (${n} line${n === 1 ? '' : 's'}) · later overrides earlier\n> AC: Given / When / Then — stated values only\n> READY FOR DEV: NO — blocked on Q1 [blocking]\n> manifest emitted · zero invented requirements ✓`,
-        'PR-Reviewer.md':
-          `> HUNKS REVIEWED: ${Math.max(1, Math.ceil(n / 4))}/${Math.max(1, Math.ceil(n / 4))}\n> SWEEP: correctness → security → architecture → tests\n> F1 [SEVERITY PER RUBRIC] evidence quoted from diff\n> style hunks: ignored (linter scope)\n> VERDICT: computed from rubric · manifest emitted ✓`,
-        'Ticket-Tester.md':
-          `> MODE: ${/error|fail|broken|bug|0 bytes|reject/i.test(input) ? 'bug-report' : 'test-plan'} (selected deterministically)\n> EXPECTATIONS: traced to stated ACs or tagged (confirm)\n> CLASSIFIER: Bug / Requirement gap / Observation\n> manifest emitted · one ticket per distinct failure ✓`,
-      };
-      return (demos[activeSkill.skill] || '> OK') +
-        '\n\n// demo output — the real SKILL.md fleet runs in Claude';
+      const skill = activeSkill.skill;
+      let body;
+      if (skill === 'Release-Notes-Writer.md') body = analyzeReleaseNotes(input);
+      else if (skill === 'Jira-Ticket-Writer.md') body = analyzeJira(input);
+      else if (skill === 'PR-Reviewer.md') body = analyzePR(input);
+      else if (skill === 'Ticket-Tester.md') body = analyzeTicketTester(input);
+      else body = '> OK';
+      return body + '\n\n// deterministic in-browser analysis (no API) — full SKILL.md runs in Claude';
+    }
+
+    // Each analyzer mirrors the first steps of its SKILL.md, in pure JS.
+    // Rule-based and stable: same input → same output, every time.
+
+    function analyzeReleaseNotes(input) {
+      const lines = input.split(/\n/).map(l => l.trim()).filter(Boolean)
+        .filter(l => !/^(git log|jira|key\s*,|---|===)/i.test(l) && !/^[A-Z][a-z]+ export:/.test(l));
+      let published = 0, excluded = 0, review = 0;
+      const decisions = [];
+      const noise = /\b(merge|wip|fixup|squash|typo|lint|prettier|eslint|reformat|bump version|version to|chore)\b/i;
+      const cve = /\bCVE-\d{4}-\d+\b|log4j|vulnerabilit/i;
+      const vague = /^\w+\s+(fixed|updated|changed)\s+(the|some|a)\s+thing/i;
+      const jiraKey = /\b([A-Z]{2,}-\d+)\b/;
+      lines.forEach(l => {
+        const id = (l.match(/^([0-9a-f]{3,})\b/) || l.match(jiraKey) || ['', '?'])[1];
+        if (cve.test(l)) { published++; decisions.push(`${id} → published:security (CVE exception)`); }
+        else if (vague.test(l)) { review++; decisions.push(`${id} → needs-review (too vague to classify)`); }
+        else if (noise.test(l)) { excluded++; const r = (l.match(noise) || ['','noise'])[1].toLowerCase(); decisions.push(`${id} → excluded:${r}`); }
+        else if (jiraKey.test(l) || /^[0-9a-f]{3,}\b/.test(l)) { published++; decisions.push(`${id} → published`); }
+        else { review++; decisions.push(`${id} → needs-review`); }
+      });
+      const n = lines.length;
+      return [
+        `LEDGER — ${n} entr${n === 1 ? 'y' : 'ies'} inventoried`,
+        '',
+        ...decisions.map(d => '  ' + d),
+        '',
+        `COVERAGE: published ${published} · excluded ${excluded} · review ${review}`,
+        `CHECK: ${published}+${excluded}+${review} = ${published + excluded + review} ${published + excluded + review === n ? '✓' : '✗'}`,
+      ].join('\n');
+    }
+
+    function analyzeJira(input) {
+      const low = input.toLowerCase();
+      const words = input.trim().split(/\s+/).filter(Boolean).length;
+      // minimum-information gate: need an actor and a capability
+      const hasActor = /\b(user|users|customer|admin|marketing|sales|finance|manager|client)\b/i.test(input);
+      const hasCapability = /\b(export|add|create|split|show|enable|generate|download|import|send|upload|allow)\b/i.test(low);
+      const belowGate = !(hasActor && hasCapability) || words <= 4;
+      if (belowGate) {
+        return [
+          'GATE: minimum-information check → FAILED',
+          '',
+          'CLARIFICATION REQUEST (no story invented):',
+          '  1. Scope — which screen/flow/feature?',
+          '  2. Symptom — what is observed today, by whom?',
+          '  3. Target — what would "done" look like?',
+          '  4. Impact — who is affected, how often?',
+          '  5. Evidence — a report, metric, example?',
+          '',
+          'gate: clarification · questions_asked: 5',
+        ].join('\n');
+      }
+      const hedge = /\b(or something|maybe|probably|i think|whatever|kind of|somehow)\b/i.test(low);
+      const overrides = /\b(actually|instead|no wait|let'?s|change to|make it)\b/i.test(low);
+      const blocking = [];
+      if (hedge) blocking.push('Q1: hedged wording ("or something") — confirm exact scope/format');
+      if (!/\b(permission|role|who can|access)\b/i.test(low)) blocking.push(`Q${blocking.length + 1}: which users/roles are permitted?`);
+      return [
+        'GATE: minimum-information check → PASSED',
+        `  actor: ${hasActor ? 'stated ✓' : 'inferred'} · capability: stated ✓`,
+        '',
+        'STORY: As a <user>, I want <capability>, so that <benefit (assumed — confirm)>',
+        'AC: Given / When / Then — stated values only, no invented limits',
+        overrides ? 'TRANSCRIPT: later statements override earlier ✓' : '',
+        '',
+        'OPEN QUESTIONS:',
+        ...(blocking.length ? blocking.map(b => '  ' + b + ' [blocking]') : ['  (none blocking)']),
+        '',
+        `READY FOR DEV: ${blocking.length ? 'NO — blocked on ' + blocking.map((_, i) => 'Q' + (i + 1)).join(', ') : 'YES'}`,
+        `gate: story · blocking: ${blocking.length}`,
+      ].filter(l => l !== '').join('\n');
+    }
+
+    function analyzePR(input) {
+      const findings = [];
+      if (/["']\s*\+\s*\w+|\+\s*\w+\s*\+.*(SELECT|INSERT|UPDATE|DELETE|WHERE)|(SELECT|WHERE).*"\s*\+/i.test(input))
+        findings.push(['BLOCKER', 'security', 'SQL injection via string concatenation']);
+      if (/sk_live_|api[_-]?key\s*=\s*["'][^"']+["']|password\s*=\s*["']|secret\s*=\s*["']/i.test(input))
+        findings.push(['BLOCKER', 'security', 'hardcoded secret / live key']);
+      if (/password_hash|SELECT.*password|jsonify.*password/i.test(input))
+        findings.push(['BLOCKER', 'security', 'sensitive data (password hash) exposed']);
+      if (/@app\.route|@router\.|def \w+\(.*\):/i.test(input) && !/@login_required|@requires_auth|current_user|check_permission|authorize/i.test(input) && /admin|export|delete|all_users/i.test(input))
+        findings.push(['BLOCKER', 'security', 'endpoint with no authz check']);
+      if (/except\s*\w*\s*:\s*\n?\s*pass|catch\s*\(.*\)\s*\{\s*\}/i.test(input))
+        findings.push(['HIGH', 'correctness', 'swallowed exception hides failures']);
+      const credentialDomain = /password|sk_live_|secret|token|auth|permission/i.test(input);
+      if (/\+|\-|@@/.test(input) && !/test_|def test|\.test\.|spec\./i.test(input) && findings.length)
+        findings.push([credentialDomain ? 'HIGH' : 'MEDIUM', 'tests', 'no test coverage for changed logic']);
+      const verdict = findings.some(f => f[0] === 'BLOCKER') ? 'BLOCK'
+        : findings.some(f => f[0] === 'HIGH') ? 'REQUEST CHANGES'
+          : findings.some(f => f[0] === 'MEDIUM') ? 'APPROVE WITH COMMENTS' : 'LGTM';
+      const order = { BLOCKER: 0, HIGH: 1, MEDIUM: 2 };
+      findings.sort((a, b) => order[a[0]] - order[b[0]]);
+      return [
+        'SWEEP: correctness → security → architecture → tests',
+        'style/formatting: ignored (linter scope)',
+        '',
+        ...(findings.length
+          ? findings.map((f, i) => `  F${i + 1} [${f[0]}] ${f[1]}: ${f[2]}`)
+          : ['  No findings. All categories checked, clean.']),
+        '',
+        `VERDICT: ${verdict} (computed from rubric)`,
+      ].join('\n');
+    }
+
+    function analyzeTicketTester(input) {
+      const hasFailure = /\b(error|fail|broken|bug|0 bytes|zero byte|reject|invalid|freeze|froze|crash|empty)\b/i.test(input);
+      const hasTicket = /## Acceptance criteria|Scenario \d|Given .*When .*Then|\[blocking\]/i.test(input);
+      if (!hasFailure && hasTicket) {
+        const scenarios = (input.match(/Scenario \d|Scenario [A-Z]/gi) || []).length;
+        const values = (input.match(/\b\d+\s?(MB|KB|GB|%|s|ms)\b/gi) || []).length;
+        return [
+          'MODE: test-plan (ticket + ACs, no failures)',
+          `  stated scenarios detected: ${scenarios}`,
+          `  concrete values → boundary probes: ${values} (each: under/at/over)`,
+          '  at-limit expectations tagged (expected per limit — confirm)',
+          '  traceability: every case carries a Source ✓',
+          '',
+          'mode: test-plan',
+        ].join('\n');
+      }
+      const hasTicketCtx = hasTicket;
+      let bugs = 0, gaps = 0, obs = 0;
+      if (/0 bytes|zero byte|empty|data loss|corrupt/i.test(input)) bugs++;
+      if (/reject|invalid|broken|error|crash/i.test(input) && !bugs) bugs++;
+      if (hasTicketCtx && /naming|convention|_part|expected|assumed/i.test(input)) gaps++;
+      if (hasTicketCtx && /freeze|froze|slow|30 sec|performance|timeout/i.test(input)) gaps++;
+      if (/\d+\s?MB.*(ok|fine|works|single file)/i.test(input)) obs++;
+      const sev = /0 bytes|data loss|corrupt/i.test(input) ? 'Blocker'
+        : /reject|invalid|broken|crash/i.test(input) ? 'High' : 'Medium';
+      const hasTrigger = /more than|when|batch|export|upload|larger|over \d/i.test(input);
+      const hasSymptom = /reject|invalid|0 bytes|error|fail|broken/i.test(input);
+      const ready = hasTrigger && hasSymptom ? 'YES' : 'NO — core repro incomplete';
+      return [
+        'MODE: bug-report (failure evidence present)',
+        '',
+        'CLASSIFIER (Bug / Requirement gap / Observation):',
+        `  bugs: ${bugs || 1}  ·  requirement_gaps: ${hasTicketCtx ? gaps : 0}${hasTicketCtx ? '' : ' (no ticket → gaps always 0)'}  ·  observations: ${obs}`,
+        '',
+        `  BUG-1 severity: ${sev} (per rubric)`,
+        `  ready_to_file: ${ready}`,
+        '',
+        `mode: bug-report`,
+      ].join('\n');
     }
 
     // ---------- movement ----------
