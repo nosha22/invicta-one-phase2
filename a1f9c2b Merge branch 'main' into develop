@@ -1,0 +1,13 @@
+a1f9c2b Merge branch 'main' into develop
+b7e3d21 PAY-341: add SEPA export button to invoices screen
+c9d0a11 fix typo in readme
+f6c1d84 PAY-355: add retry logic for webhook delivery
+3ad5b78 PAY-362 fix rounding error in VAT totals on credit notes
+5b5aa90 wip
+7d3ee01 upgrade log4j 2.14 -> 2.17 (CVE-2021-44228)
+
+Jira:
+PAY-341 | SEPA payment file export | Story | Done
+PAY-355 | Improve webhook reliability | Story | Done
+PAY-362 | VAT rounding incorrect on credit notes | Bug | Done
+PAY-370 | Dark mode | Story | In Progress

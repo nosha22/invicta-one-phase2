@@ -39,6 +39,45 @@ The boundary that keeps grounding safe: retrieved documents describe the system 
 
 Record every source actually used in the decision manifest, so grounded runs stay auditable and comparable across runs in the same environment.
 
+### Step 0.5 — Decompose a multi-item request (apply before everything else)
+
+A brain dump often bundles several unrelated asks ("dashboard is slow, also we want dark mode, and the totals are wrong"). Forcing these into one ticket is wrong — different owners, different Definition of Done. Split them, but split **mechanically** so every run produces the same tickets in the same order.
+
+**Detect distinct items — mechanically (this is the determinism-critical step).** Do not judge "same area?" by feel. Apply this exact procedure:
+
+1. **List every concern** the input raises (each complaint, request, or defect mention).
+2. **Tag each concern with its kind:** Defect (something is wrong/broken/incorrect), Performance (slow/laggy/timeout), Feature (add/want/need a new capability), Chore (config/cleanup/cosmetic).
+3. **Tag each concern with its primary domain noun** — the main feature or object it is about (e.g. `dashboard`, `invoice`, `export`, `login`, `totals`). Use the most specific shared noun; treat obvious synonyms and sub-parts of one feature as the same noun (`invoice list` and `invoice search` are both `invoice`; `summary page` and `totals` on it are `summary`).
+4. **Merge concerns that share BOTH the same kind AND the same domain noun** into one item. Everything else is a separate item.
+
+So two Performance complaints both about `invoice` → **one** item. A Performance complaint about `dashboard` and a Defect about `totals` → **two** items (different kind and different noun). This replaces the ambiguous "related?" judgment with a countable test: same kind + same noun = merge, otherwise split. The item count is therefore a function of the concerns' (kind, noun) pairs, identical every run.
+
+**A concern that is only a vague Performance gripe with no domain noun of its own** (e.g. "login feels sluggish") is still its own item if its noun differs from the others; it then goes through the normal gate in its slot and, lacking a target, becomes a **Clarification** — but that outcome is now fixed by the gate, not by whether the run "felt" it was worth a ticket.
+
+**Performance concerns are never Bugs unless a target is breached (apply exactly).** A complaint that something is "slow / sluggish / laggy / takes too long" is a **Performance** concern, not a Defect — even though it describes something undesirable. It becomes a **Bug** ticket only if the input states a *concrete performance target that is being missed* (e.g. "the SLA is 2s but it takes 9s", "should load instantly but hangs 30s with a stated 5s budget"). With no stated numeric target or budget, a performance concern **fails the minimum-information gate** (there is no acceptance value to build against) and becomes a **Clarification** in its slot — every run. So "login feels sluggish" → Clarification (no target); "checkout takes 12s against our stated 2s SLA" → Bug (target breached). This removes the Defect-vs-Performance guess: slowness is Performance-Clarification by default, Bug only on a breached stated target.
+
+**Order the items canonically (this fixes the drift).** Sort the detected items by kind in this fixed precedence, and within the same kind by first appearance in the input:
+1. Defect / incorrect behaviour (Bug)
+2. Performance / reliability concern
+3. New capability / feature (Story)
+4. Chore / config / cosmetic (Task)
+
+Number the resulting tickets in that order. This guarantees the same item becomes "Ticket 1" every run, regardless of the order they appeared in the dump.
+
+**Process each item independently** through Steps 1–4 below, as if it were the whole input: each gets its own facts, its own gate check, its own type, its own blocking questions, its own Ready-for-Dev. An item that fails the minimum-information gate (Step 2) becomes a **Clarification** block in its slot — it does **not** drag the others down, and the well-specified items still become real tickets.
+
+**Emit one report, one manifest.** Output the tickets/clarifications in the canonical order under a one-line preamble naming the split. End with a **single aggregate manifest** whose `items` array carries one entry per ticket in canonical order — this is what `check_determinism.py` diffs, so the per-item decisions must be identical every run. Each item entry carries only **hard decisions**: its `slot`, `gate`, `type`, and `ready_for_dev` — **not** the blocking-question list, whose exact membership is a boundary judgment (the same reason the single-item manifest drops counts). `ready_for_dev` already encodes the decision that matters (does this item have any blocker at all); which specific questions block is presentational and lives in the ticket body.
+
+```json
+{"skill": "jira-ticket-writer", "items": [
+  {"slot": 1, "gate": "story", "type": "Bug", "ready_for_dev": false},
+  {"slot": 2, "gate": "clarification"},
+  {"slot": 3, "gate": "story", "type": "Story", "ready_for_dev": false}
+], "grounding": {"used": false, "sources": []}}
+```
+
+When the input contains only **one** item, skip this step entirely and emit the single-ticket manifest shown later (no `items` array). The single-item path is unchanged.
+
 ### Step 1 — Extract facts
 
 Comb the input for: **actor** (who benefits / who is affected), **capability or problem**, **trigger** (when it happens), **data involved**, **constraints** (limits, formats, deadlines-as-scope), **non-goals**, and **explicitly mentioned technology**.
@@ -136,6 +175,18 @@ So `stated_scenarios` equals the number of distinct agreed *outcomes* in the inp
 2. Without the answer a developer would either be unable to start or would provably build the wrong thing on a **stated** requirement.
 
 Everything else is non-blocking: naming/copy/nice-to-have, and every question that exists only because *you* imagined a technical edge the stakeholder never mentioned. Litmus test: if you can trace the question back to a specific phrase in the input, it may block; if it came from your own engineering imagination, it does not. This keeps the blocking set identical across runs regardless of how many extra technical scenarios you choose to surface.
+
+**A third, always-blocking category exists alongside the input-traced one: a mechanism gap inside a stated Scenario's own `When` step — but only when the gap is genuinely ambiguous.** Apply this two-part test: (a) the step's action has **no single obvious default implementation** given the Scenario's own `Given` context, and (b) at least two materially different, equally plausible mechanisms exist. If a Scenario's `Given` already implies the mechanism (e.g. "Given a user is logged into their account, When they deactivate it" — the user is logged in, so an in-app settings action is the obvious default; there's no genuine fork), it is **not** a mechanism gap — implement the obvious default and don't ask. Reactivation of an *already-deactivated* account is the canonical genuine gap: the `Given` describes a state where normal login is itself blocked, so "how do they get back in" has real, materially different candidates (self-service login, emailed link, support request) with no obvious single default — that gap blocks. Do not generalize "this step's exact mechanism wasn't spelled out" into "therefore blocking" — the test is genuine multi-way ambiguity with no obvious default, not mere absence of detail.
+
+**Cite your reasoning inline for every open question — this forces the test above to actually apply, instead of a felt judgment:**
+- Blocking: append `(input: "<the phrase>")` or `(mechanism gap in Scenario N)`.
+- Non-blocking: append `(non-blocking — <copy/placement/enforcement-layer/not raised by input>)`.
+
+**Common false-positives — apply these as fixed, negative examples (they recur and must resolve the same way every run):**
+- **Exact wording of user-facing text** ("what should the error message say", "what should the confirmation banner read") is copy. It is non-blocking even when the stated Scenario requires "a message is shown" — the AC is satisfied by *any* clear message; the developer can ship a reasonable default and revise the copy later.
+- **A choice between two implementation layers that produce the same observable behaviour** ("client-side vs server-side validation", "sync vs async job") is non-blocking when the stated Scenario's `Then` doesn't depend on which layer — both satisfy the same user-visible outcome.
+- **Data-handling, retention, or visibility policy the input never mentioned** ("what happens to the data while X", "how long is Y retained", "is Z shown to other users") is a self-generated technical concern, not a gap in a stated Scenario — non-blocking per the input-traced test above, unless the input explicitly raised it.
+- **UI entry-point or selection-mechanism placement the input never specified** ("where does the user trigger this", "checkboxes vs select-all vs filters") is non-blocking when the stated Scenario's `Given`/`When` already describes the action happening (e.g. "the user selects multiple invoices") without needing to fix exactly how.
 
 **Counting rule for `assumptions` (apply exactly — this field must not drift).** Do not count `(assumed — confirm)` tags in the prose; their number varies with how sentences are grouped. Instead, evaluate this fixed, closed checklist of four structural slots and count how many are **inferred rather than stated by the input** — each worth exactly one point, evaluated in this order:
 

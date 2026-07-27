@@ -54,13 +54,15 @@ Excluded items are **never deleted** — they move to the *Internal changes* app
 |---|---|---|
 | Branch plumbing | `Merge branch 'main'`, `Merge pull request #42` | `plumbing` |
 | Trivial hygiene | typo fixes, comment/docstring-only, formatting, lint, whitespace | `hygiene` |
-| Build/CI/tooling | pipeline config, Dockerfile, build scripts, linter config | `internal-tooling` |
+| Build/CI/tooling | pipeline config, Dockerfile, build scripts, linter config, **dependency/package version bumps with no accompanying CVE/security language** | `internal-tooling` |
 | Release chores | version bumps, tag commits, changelog edits | `release-chore` |
 | Test-only changes | commits touching only tests | `tests-only` |
 | WIP leftovers | `wip`, `fixup!`, `temp`, `squash me` | `wip` |
 | Revert pairs | a commit **and** its revert both in this range → exclude both | `net-zero` |
 | Not completed | Jira status is not Done/Closed/Resolved (e.g. In Progress, Reopened, In Review) | `not-shipped` |
-| Internal-only work | infra migrations, refactors with no user-visible effect, `internal` label | `internal` |
+| Internal-only work | infra migrations or refactors *described as having no user-visible effect*, or an item carrying an explicit `internal`/`infra` **label field** | `internal` |
+
+**Disambiguating `internal-tooling` vs. `internal` (apply exactly — this must not drift).** These two rows can both look applicable to the same item (a CI-runner migration reads as both "tooling" and "infra"); resolve with one fixed precedence: **an explicit label/tag field on the item that literally says `internal` or `infra` always wins and produces `internal`, regardless of what the content is about.** Only when there is no such explicit label field do you categorize by content: dependency bumps, pipeline/build/lint config → `internal-tooling`; a refactor or migration the input itself frames as having no user-visible effect (but with no explicit `internal` label) → `internal`. A bare git commit (no label field exists at all, e.g. "bump dependencies" with no CVE mentioned) therefore always falls to content-based categorization → `internal-tooling`, never `internal` — there is no label field to invoke the override.
 
 Two exceptions that override the table:
 - **Security dependency bumps ship.** A dependency upgrade that fixes a vulnerability (CVE mentioned, or clearly a security patch) is client-relevant → classify under *Security*, do not exclude as internal.

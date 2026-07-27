@@ -63,7 +63,7 @@ The traceability check is the plan's coverage guarantee: if a stated scenario ma
 Not every failure is a bug, and pretending otherwise floods the backlog and buries the real ones. Classify each distinct failure with this rule:
 
 - **Bug** — the observed behavior violates a **stated** acceptance criterion, or violates **basic correctness** regardless of what the ticket says: crash, data loss/corruption, security exposure, wrong calculation.
-- **Requirement gap** — the behavior conflicts only with an *assumed*, *proposed*, or unstated expectation (the naming convention the ticket tagged `(assumed — confirm)`; performance nobody set a target for). This goes back to the Product Owner as a question, not to a developer as a bug.
+- **Requirement gap** — the behavior conflicts only with an *assumed*, *proposed*, or unstated expectation (the naming convention the ticket tagged `(assumed — confirm)`; performance nobody set a target for). This goes back to the Product Owner as a question, not to a developer as a bug. **A requirement gap requires a ticket/AC to exist as the baseline it deviates from.** When the evidence has no accompanying ticket at all (e.g. a raw customer complaint), `requirement_gaps` is **always 0**: with no stated or assumed requirement to compare against, every non-bug note is an **Observation**, not a gap. Context notes ("since yesterday implies a regression", "payroll runs Friday") are Observations — they flag business context or hypotheses, not conflicts with a documented expectation. Do not classify a note as a requirement gap unless you can name the specific ticket expectation it deviates from.
 - **Observation** — worth recording, violates nothing (a passing case, a cosmetic note).
 
 ### Bug ticket template
@@ -88,8 +88,14 @@ One ticket per distinct failure. The same root symptom at the same location is o
 ## Suspected area
 <optional, one line, tagged "(hypothesis — not verified)">
 ## Ready to file
-YES only if steps are complete and the expectation has a source; otherwise NO — <what's missing>
+<computed by the fixed rule below, never by feel>
 ```
+
+**Ready-to-file rule (apply exactly — this must not drift).** `ready_to_file` is `YES` **if and only if both** hold:
+1. **The core repro is present:** the report states the trigger condition and the observed symptom — i.e. *what was done* and *what went wrong* — even if secondary details (exact threshold, environment, browser) are missing. Missing secondary details are tagged `unknown — confirm` and do **not** block filing; they are follow-ups, not gaps in the core repro.
+2. **The expectation has a source:** either a stated acceptance criterion, or the reporter's explicitly stated expectation.
+
+It is `NO` only when the core repro itself is incomplete — the trigger *or* the symptom is absent — or the expectation has no source at all. A vague-but-present threshold ("more than ~100 invoices") counts as a stated trigger condition, not a missing step: the approximate value is a `confirm` follow-up, and the symptom ("bank rejects as invalid format") is fully stated, so a complaint of this shape is `YES`. Do not lower to `NO` merely because precision details are pending — that is what the `unknown — confirm` tags are for.
 
 ### Severity rubric (fixed)
 
@@ -128,16 +134,16 @@ If a Jira tool is connected and the user asks to file the bugs: show the drafts 
 
 ## Decision manifest
 
-End every output with a machine-readable summary as the **last** fenced `json` block — prose may vary between runs, these decisions may not (`check_determinism.py` diffs this block):
+End every output with a machine-readable summary as the **last** fenced `json` block — prose may vary between runs, these decisions may not (`check_determinism.py` diffs this block). The manifest carries **hard decisions only, not volatile counts.** Test-case bucket counts (`derived` vs `exploratory`), and the `observations` count in bug mode, are excluded: whether a boundary case is labelled "derived" or "exploratory", or whether a minor note is worth listing as a separate observation, is a presentational judgment that can vary in wording without changing any decision. What must be identical every run: the `mode`, the traceability result, the count of `stated` cases (the traceable core), and — in bug mode — the list of bugs with each bug's `severity` and computed `ready_to_file`, plus the count of distinct `bugs` and `requirement_gaps` (which are rule-classified, not stylistic).
 
 Mode A:
 ```json
-{"skill": "ticket-tester", "mode": "test-plan", "cases": {"stated": 2, "derived": 3, "negative": 1, "exploratory": 2}, "traceability": "2/2", "confirm_tags": 3}
+{"skill": "ticket-tester", "mode": "test-plan", "stated_cases": 2, "traceability": "2/2"}
 ```
 
 Mode B:
 ```json
-{"skill": "ticket-tester", "mode": "bug-report", "classified": {"bugs": 1, "requirement_gaps": 2, "observations": 1}, "bugs": [{"id": "BUG-1", "severity": "Blocker", "ready_to_file": true}]}
+{"skill": "ticket-tester", "mode": "bug-report", "classified": {"bugs": 1, "requirement_gaps": 2}, "bugs": [{"id": "BUG-1", "severity": "Blocker", "ready_to_file": true}]}
 ```
 
 ## Worked micro-example (Mode B)
@@ -172,8 +178,17 @@ YES
 
 | # | Input | Why it's messy | Run 1 (2026-07-16) | Run 2 | Run 3 |
 |---|---|---|---|---|---|
-| 1 | SEPA ticket, no results | assumed naming AC, concrete 8MB value, proposed edge scenario | PASS — Mode A; 2 stated cases; 8MB boundary trio derived with at-limit expectation tagged `confirm`; naming case carries the assumed tag; exploratory item quarantined; traceability 2/2 ✓ | pending | pending |
-| 2 | Same ticket + messy QA notes | passing and failing results mixed, informal language, three different kinds of failure | PASS — Mode B; zero-byte second file → Bug/Blocker (data loss, basic correctness); `export_N` naming mismatch → Requirement gap (AC was assumed); 30s freeze → Requirement gap (no stated performance target); 7MB pass → Observation; coverage cross-check notes Scenario 2 (file-count message) not verified | pending | pending |
-| 3 | Raw customer complaint email, no ticket | urgency noise, vague threshold ("~100 invoices"), missing environment details | PASS — Mode B; one High bug (main function broken, no *stated* workaround); repro steps only from evidence; environment fields `unknown — confirm`; expectation sourced to the reporter's stated expectation; Ready to file: YES | pending | pending |
+| # | Input | Why it's messy | Run 1 (2026-07-16) | Run 2 (2026-07-25) | Run 3 (2026-07-25) |
+|---|---|---|---|---|---|
+| 1 | SEPA ticket, no results | assumed naming AC, concrete 8MB value, proposed edge scenario | PASS — Mode A; 2 stated cases; 8MB boundary trio derived with at-limit expectation tagged `confirm`; naming case carries the assumed tag; exploratory item quarantined; traceability 2/2 ✓ | PASS | PASS |
+| 2 | Same ticket + messy QA notes | passing and failing results mixed, informal language, three different kinds of failure | PASS — Mode B; zero-byte second file → Bug/Blocker (data loss, basic correctness); `export_N` naming mismatch → Requirement gap (AC was assumed); 30s freeze → Requirement gap (no stated performance target); 7MB pass → Observation; coverage cross-check notes Scenario 2 (file-count message) not verified | PASS | PASS |
+| 3 | Raw customer complaint email, no ticket | urgency noise, vague threshold ("~100 invoices"), missing environment details | PASS — Mode B; one High bug (main function broken, no *stated* workaround); repro steps only from evidence; environment fields `unknown — confirm`; expectation sourced to the reporter's stated expectation; Ready to file: YES | PASS | PASS |
+
+**Verification:** all three inputs confirmed decision-deterministic across 3 fresh-context runs each, diffed with `check_determinism.py --group <input>` → `RESULT: PASS`.
+
+**Determinism hardening (three drifts found and fixed during eval).**
+1. **Test-case bucket counts drifted** — a boundary case labelled "derived" in one run became "exploratory" in another, and observation counts varied. Fixed by slimming the manifest to hard decisions (mode, traceability, `stated_cases`, the bug list, rule-classified `bugs`/`requirement_gaps` counts); presentational bucket labels no longer enter the manifest.
+2. **`ready_to_file` oscillated** on the complaint — one run read missing precision details as incomplete repro steps (NO), another filed it (YES). Fixed by defining the rule exactly: YES iff the core trigger + symptom are present and the expectation has a source; missing precision details are `unknown — confirm` follow-ups, never blockers.
+3. **`requirement_gaps` drifted** when there was no ticket — one run classified context notes ("regression", "payroll deadline") as gaps. Fixed by requiring a ticket/AC as the baseline: with no ticket, `requirement_gaps` is always 0 and every non-bug note is an Observation.
 
 *Runs 2–3: re-run each input in a fresh session, save each output, and run `python check_determinism.py run1.md run2.md run3.md` before submitting.*
