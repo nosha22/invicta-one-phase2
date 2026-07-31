@@ -80,6 +80,8 @@ Assign each surviving item to exactly one section. Test the categories **in this
 4. **Improvements** — existing capability made better: faster, more reliable, clearer, extended limits. Jira *Tasks* that change user-visible content without fixing a defect (copy changes, updated links) land here.
 5. **Fixes** — something was broken and now is not. Jira *Bug* type defaults here.
 
+**New feature vs. Improvement, when a change adds a new-sounding word to an existing capability (apply exactly — this must not drift).** Ask: does the end result the user was already getting stay the same (just at greater scale, speed, or convenience), or is the end result itself something categorically new? If the underlying thing the user was already doing is unchanged and the change only extends how much/how fast/how conveniently they can do it, that's an **Improvement**, even if the mechanism added (pagination, caching, batching, an index) sounds like a feature in isolation. Reserve **New feature** for a genuinely new *end result* — something the release note reader could not get out of the product at all before. Worked example: "add pagination to accounts list" — before, the user could already view/browse the accounts list; pagination doesn't change *what* they get, only how much of it they can practically browse at once → **Improvement** ("extended limits"), not New feature. Contrast: "add CSV export for accounts" would be a New feature — exporting is an end result the user categorically could not get before.
+
 ### Step 5 — Translate jargon into business value
 
 Rewrite each item using this line template:

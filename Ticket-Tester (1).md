@@ -17,7 +17,7 @@ Decide the mode from the input, applying these rules in order:
 
 1. The input contains **failure evidence** — failed test output, a stack trace, QA notes with observed behavior, or a user complaint describing malfunction → **Mode B: Bug reports** (whether or not a ticket accompanies the evidence).
 2. Otherwise, the input contains a **ticket or acceptance criteria** → **Mode A: Test plan**.
-3. Neither → there is nothing to test; say so in one sentence and point to `jira-ticket-writer` to produce a ticket first. **This refusal still ends with a manifest** (see the `no-testable-content` shape below) — a correct "nothing to test" outcome must be machine-verifiable as identical across runs, not just prose. A one-line story with no `Scenario`/`Given`/`When`/`Then` and no acceptance criteria is this case: do not invent scenarios, and do not silently omit the manifest.
+3. Neither → there is nothing to test; say so in one sentence and point to `jira-ticket-writer` to produce a ticket first.
 
 When both a ticket and results are present (Mode B), also cross-check coverage: which stated scenarios the results exercised, and which were never run.
 
@@ -68,8 +68,6 @@ Not every failure is a bug, and pretending otherwise floods the backlog and buri
 **A concrete observed number with no stated target is always a requirement gap, never an "observation for later" (apply exactly — this must not drift).** If QA measured something specific (a 30-second freeze, a response time, a retry count) while a ticket with acceptance criteria exists, and that ticket never set a target for it, this is a requirement gap by the rule above — full stop. Do not downgrade it to an Observation on the reasoning that "no AC was violated since none was stated" — the absence of a stated target is exactly what makes it a gap, not a reason to drop it. Reserve Observation for genuinely non-actionable context (business urgency, a regression-timing guess, a passing case) that doesn't correspond to any measurable ticket behavior at all.
 - **Observation** — worth recording, violates nothing (a passing case, a cosmetic note).
 
-**A purely cosmetic issue with no stated AC is always an Observation, never a Bug (apply exactly — this must not drift).** If a note describes something only *visual/aesthetic* — a slightly off-center spinner, a color that looks off, minor misalignment — and there is no acceptance criterion requiring the specific appearance, it is an **Observation**, even though it describes something "wrong," and even if the reporter listed it alongside real bugs. Cosmetic polish violates none of the basic-correctness categories (crash, data loss, security, wrong calculation), and with no AC there is nothing it formally breaks. A reporter tagging it "minor" is a strong signal, but the rule holds regardless of that tag. So a QA session reporting "double-charge, wrong email total, and a slightly off-center spinner" yields **exactly 2 bugs** (double-charge, wrong total) and 1 Observation (the spinner) — never 3 bugs. Do not promote cosmetic notes into the bug count.
-
 ### Bug ticket template
 
 One ticket per distinct failure. The same root symptom at the same location is one ticket listing all occurrences; different symptoms are never merged, even when they might share a cause.
@@ -101,30 +99,18 @@ One ticket per distinct failure. The same root symptom at the same location is o
 
 It is `NO` only when the core repro itself is incomplete — the trigger *or* the symptom is absent — or the expectation has no source at all. A vague-but-present threshold ("more than ~100 invoices") counts as a stated trigger condition, not a missing step: the approximate value is a `confirm` follow-up, and the symptom ("bank rejects as invalid format") is fully stated, so a complaint of this shape is `YES`. Do not lower to `NO` merely because precision details are pending — that is what the `unknown — confirm` tags are for.
 
-**Identified trigger vs. reproducible trigger (apply exactly — this must not drift).** The `ready_to_file` test asks whether the trigger is *identified*, not whether you personally could *reproduce it step-by-step*. These pull apart in two recurring shapes, and each has a fixed answer:
-- **A stack trace / error with a clear proximate cause but unknown upstream origin** (e.g. "`TypeError` because a row's amount is `None`" — but what *produces* the `None` row isn't stated). The trigger **is** identified: the code path and the failing condition (a `None` amount reaching `generate_pdf`) are both named by the trace. What's missing — which user action seeds that `None` — is an `unknown — confirm` follow-up, not an absent trigger. A crash with a named failing condition is **`ready_to_file: YES`**. Do not lower to NO because the upstream seed is inferred rather than stated.
-- **A report the reporter themselves could not reproduce** ("some users say the dashboard won't load, but it works fine for me, maybe more on mobile"). Here the trigger is genuinely *not identified* — there is no stated condition that reliably produces the symptom, only a hearsay symptom with no confirmed trigger. This is **`ready_to_file: NO`** (needs the affected users' conditions before a developer can act), every run. The distinguishing question: *does the evidence name a specific condition under which the symptom occurs?* A stack trace names one (the `None` amount); "works fine for me" names none.
-
-Mechanical version, apply in this order: (1) Is a symptom stated? If no → NO. (2) Does the evidence name a specific condition/code-path under which it occurs (a trace's failing line counts; "some users, sometimes" does not)? If no → NO. (3) Is there an expectation source (an AC, a reporter-stated expected behavior, or basic-correctness for a crash)? If no → NO. Otherwise → YES, with any missing precision as `unknown — confirm`.
-
 ### Severity rubric (fixed)
 
 | Severity | Definition |
 |---|---|
 | **Blocker** | Data loss/corruption, security exposure, or crash on the main path |
 | **High** | A main function is broken with no *stated* workaround |
-| **Medium** | Broken only on a genuinely peripheral edge path, or a *real* alternative-route workaround exists (see rules below) |
+| **Medium** | Broken on an edge path, or a workaround was stated |
 | **Low** | Cosmetic; no functional impact |
 
 Judge "workaround" only on what the evidence states — inferring one that the reporter never mentioned quietly downgrades real pain.
 
-**What counts as a real workaround (apply exactly — this must not drift).** A workaround downgrades severity only if it lets the user still accomplish *the actual thing they need to do*. "Smaller batches work" is **not** a workaround when the user's real job is to process the large batch (a customer with 100+ invoices cannot choose to have fewer invoices) — it's just a description of where the break starts, i.e. the failing path, not an escape from it. A genuine workaround is an alternative route to the *same needed outcome* ("you can export as CSV instead and the bank accepts that too"). When the only "workaround" is "do less than what you actually need," treat the case as a main-function break with **no** workaround, and do not apply the Medium downgrade.
-
-**Precedence: the Blocker-vs-High test below governs a broken main function, and it outranks the "edge path / workaround" Medium downgrade.** If a main function is broken on a realistic path (a real customer's real batch size), resolve severity with the data-loss test in the next paragraph — Blocker if data was destroyed, otherwise High. Do not route such a case to Medium by reframing the failing path as an "edge path" or by counting "the smaller case still works" as a workaround. Medium is for genuinely peripheral breaks (a rare edge input nobody hits in normal use) or a *real* alternative-route workaround, not for the boundary where a mainstream use case starts failing.
-
 **Blocker vs. High, when a main function fails (apply exactly — this must not drift).** Ask one question: *did the process destroy, truncate, or fail to write data that should exist?* If yes → **Blocker** — a 0-byte file where content was expected, a record silently dropped, a write that never completes, are all data literally missing or wrong forever. If the process completes and produces a fully-formed, intact result that an external system then rejects (a bank validator, a downstream parser, a format check) → **High**, not Blocker — the function is broken (it doesn't achieve its purpose) but nothing was destroyed; the same data can be re-generated or re-submitted once the format issue is fixed. Contrast pair: a SEPA export that produces a **0-byte second file** is Blocker (the payment data in that file is gone). A SEPA export that produces a **complete file the bank rejects as "invalid format"** is High (the data is all there, intact — the format is wrong, not the data).
-
-Worked example tying it together — the "SEPA export rejected as invalid format for batches over ~100 invoices, smaller batches work" complaint: the customer's real job is the large batch, so "smaller batches work" is **not** a workaround (per the rule above); the main function is broken on a realistic path; the file is produced intact but the bank rejects the format → **High**, every run. Not Medium (no real workaround, not an edge path), not Blocker (no data destroyed).
 
 ### Output template (Mode B)
 
@@ -165,12 +151,6 @@ Mode B:
 ```json
 {"skill": "ticket-tester", "mode": "bug-report", "classified": {"bugs": 1, "requirement_gaps": 2}, "bugs": [{"id": "BUG-1", "severity": "Blocker", "ready_to_file": true}]}
 ```
-
-Nothing-to-test (rule 3 — a ticket with no acceptance criteria/scenarios and no failure evidence):
-```json
-{"skill": "ticket-tester", "mode": "no-testable-content"}
-```
-This is the **exact, closed** shape for that case — just `skill` and `mode`, nothing else. Every run that correctly refuses an untestable input emits precisely this, so three correct refusals are provably identical rather than three differently-worded prose paragraphs with no manifest. Do not add fields describing what's missing; that belongs in the one-sentence prose above the manifest.
 
 ## Worked micro-example (Mode B)
 

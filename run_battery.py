@@ -74,19 +74,47 @@ def parse_battery(path: str):
         yield code, skill_file, fence.group(1).rstrip()
 
 
-def call_claude_code(prompt: str) -> str:
-    """One fresh, isolated `claude -p` turn. Raises on failure."""
+def call_claude_code(prompt: str, model: str = None, effort: str = None) -> str:
+    """One fresh, isolated `claude -p` turn. Raises on failure.
+
+    The skill+payload text is sent via stdin, never as a CLI argument — a
+    SKILL.md's own '---' YAML frontmatter would otherwise be misread as a
+    command-line option if passed directly after -p.
+    """
+    cmd = ["claude", "-p", "Follow the instructions and process the payload below exactly as specified.",
+           "--output-format", "json", "--permission-mode", "bypassPermissions"]
+    if model:
+        cmd += ["--model", model]
+    if effort:
+        cmd += ["--effort", effort]
+
     result = subprocess.run(
-        ["claude", "-p", prompt, "--output-format", "json"],
-        capture_output=True, text=True, timeout=300,
+        cmd,
+        input=prompt, capture_output=True, text=True, timeout=300,
     )
+
+    # Claude Code can exit non-zero while still printing a well-formed JSON
+    # result object on stdout (is_error:true with a "result"/"error" field
+    # explaining why). Parse stdout first regardless of returncode so we
+    # can surface that real message instead of a truncated raw blob.
+    data = None
+    if result.stdout.strip():
+        try:
+            data = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            data = None
+
     if result.returncode != 0:
-        raise RuntimeError(f"claude exited {result.returncode}: {result.stderr[:300]}")
-    try:
-        data = json.loads(result.stdout)
+        if data is not None:
+            msg = data.get("result") or data.get("error") or data.get("message") or json.dumps(data)
+            raise RuntimeError(f"claude exited {result.returncode} (is_error={data.get('is_error')}, "
+                                f"stop_reason={data.get('stop_reason')}): {msg}")
+        detail = (result.stderr or "").strip() or (result.stdout or "").strip() or "(no stderr or stdout captured)"
+        raise RuntimeError(f"claude exited {result.returncode}: {detail[:1000]}")
+
+    if data is not None:
         return data.get("result", result.stdout)
-    except json.JSONDecodeError:
-        return result.stdout  # fall back to raw text if JSON parsing fails
+    return result.stdout  # fall back to raw text if JSON parsing fails
 
 
 def canon_manifest(output: str):
@@ -104,6 +132,9 @@ def main():
     ap.add_argument("--skill", choices=sorted(SKILL_ALIASES), help="only this skill's inputs")
     ap.add_argument("--only", nargs="+", help="only these input codes, e.g. J4 J5")
     ap.add_argument("--runs", type=int, default=3)
+    ap.add_argument("--model", help="model alias (sonnet/opus/haiku/fable) or full model name, e.g. claude-sonnet-5")
+    ap.add_argument("--effort", choices=["low", "medium", "high", "xhigh", "max", "ultracode"],
+                     help="effort level for the session (available levels depend on the model)")
     ap.add_argument("--battery", default=BATTERY_FILE)
     ap.add_argument("--dry-run", action="store_true", help="parse + print plan, no claude calls")
     args = ap.parse_args()
@@ -123,7 +154,8 @@ def main():
     if not inputs:
         sys.exit("No matching inputs found — check --skill/--only against " + args.battery)
 
-    print(f"Plan: {len(inputs)} input(s) × {args.runs} run(s) = {len(inputs) * args.runs} Claude Code calls\n")
+    config_note = f" (model={args.model or 'default'}, effort={args.effort or 'default'})"
+    print(f"Plan: {len(inputs)} input(s) × {args.runs} run(s) = {len(inputs) * args.runs} Claude Code calls{config_note}\n")
     if args.dry_run:
         for code, skill_file, payload in inputs:
             print(f"  {code:4s} -> {skill_file}  ({len(payload)} chars payload)")
@@ -146,7 +178,7 @@ def main():
         for n in range(1, args.runs + 1):
             prompt = skill_text + "\n\n---\n\n" + payload
             try:
-                output = call_claude_code(prompt)
+                output = call_claude_code(prompt, model=args.model, effort=args.effort)
             except Exception as e:
                 print(f"  run {n}: CALL FAILED — {e}")
                 errors.append(str(e)); manifests.append(None)
@@ -174,6 +206,21 @@ def main():
         print(f"{code:6}{skill_file:24}{status:8}{note}")
     passed = sum(1 for r in results if r[2] == "PASS")
     print(f"\n{passed}/{len(results)} PASS. Saved outputs are in ./runs/ — use them as Eval Log evidence.")
+
+    # Persist the summary too — printed terminal output alone is easy to lose
+    # across 35 inputs' worth of scrollback.
+    summary_txt = outdir / "SUMMARY.txt"
+    summary_csv = outdir / "SUMMARY.csv"
+    with summary_txt.open("w", encoding="utf-8") as f:
+        f.write(f"{'CODE':6}{'SKILL':24}{'RESULT':8}NOTE\n")
+        for code, skill_file, status, note in results:
+            f.write(f"{code:6}{skill_file:24}{status:8}{note}\n")
+        f.write(f"\n{passed}/{len(results)} PASS\n")
+    with summary_csv.open("w", encoding="utf-8") as f:
+        f.write("code,skill,result,note\n")
+        for code, skill_file, status, note in results:
+            f.write(f'{code},{skill_file},{status},"{note}"\n')
+    print(f"Summary also saved to {summary_txt} and {summary_csv}")
 
 
 if __name__ == "__main__":

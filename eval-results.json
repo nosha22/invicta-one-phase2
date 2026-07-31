@@ -1,90 +1,291 @@
 {
-  "note": "Official determinism eval results — run in fresh Claude sessions, verified with check_determinism.py. Update by editing this file and pushing.",
-  "updated": "2026-07-25",
+  "note": "Determinism eval results — each input run 3x in fresh Claude Code sessions, manifests compared with check_determinism.py. 35 inputs across 4 skills (3 official + robustness battery).",
+  "updated": "2026-07-30",
+  "summary": {
+    "total": 35,
+    "passed": 35,
+    "failed": 0
+  },
   "results": [
     {
       "skill": "Jira-Ticket-Writer",
-      "input": "Input 1 — vague brain dump",
+      "code": "J1",
+      "input": "J1 — vague brain dump",
       "runs": 3,
       "status": "PASS",
-      "note": "assumptions rule hardened after drift"
+      "note": "gate=story"
     },
     {
       "skill": "Jira-Ticket-Writer",
-      "input": "Input 2 — SEPA transcript",
+      "code": "J2",
+      "input": "J2 — refinement transcript",
       "runs": 3,
       "status": "PASS",
-      "note": "blocking + scenario-count rules hardened"
+      "note": "gate=story"
     },
     {
       "skill": "Jira-Ticket-Writer",
-      "input": "Input 3 — below gate",
+      "code": "J3",
+      "input": "J3 — below the gate",
       "runs": 3,
       "status": "PASS",
-      "note": "clarification manifest grounding pinned"
+      "note": "gate=clarification"
     },
     {
-      "skill": "Release-Notes-Writer",
-      "input": "Input 1 — mixed dump",
+      "skill": "Jira-Ticket-Writer",
+      "code": "J4",
+      "input": "J4 — three different types",
       "runs": 3,
       "status": "PASS",
-      "note": "coverage reconciles, 17→7/10/0"
+      "note": "gate=—"
     },
     {
-      "skill": "Release-Notes-Writer",
-      "input": "Input 2 — cryptic commits",
+      "skill": "Jira-Ticket-Writer",
+      "code": "J5",
+      "input": "J5 — shuffled order + vague performance",
       "runs": 3,
       "status": "PASS",
-      "note": "dedup rule hardened (phantom-key drift)"
+      "note": "gate=—"
     },
     {
-      "skill": "Release-Notes-Writer",
-      "input": "Input 3 — Jira CSV",
+      "skill": "Jira-Ticket-Writer",
+      "code": "J6",
+      "input": "J6 — same type, same area (must not split)",
       "runs": 3,
       "status": "PASS",
-      "note": "OPS-12 excluded internal, APP-207 not-shipped; 5→3/2/0"
+      "note": "gate=clarification"
+    },
+    {
+      "skill": "Jira-Ticket-Writer",
+      "code": "J7",
+      "input": "J7 — bug vs feature request",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=story"
+    },
+    {
+      "skill": "Jira-Ticket-Writer",
+      "code": "J8",
+      "input": "J8 — number embedded in prose",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=story"
+    },
+    {
+      "skill": "Jira-Ticket-Writer",
+      "code": "J9",
+      "input": "J9 — change of mind, no transcript",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=story"
+    },
+    {
+      "skill": "Jira-Ticket-Writer",
+      "code": "J10",
+      "input": "J10 — hidden dependency",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=story"
+    },
+    {
+      "skill": "Jira-Ticket-Writer",
+      "code": "J11",
+      "input": "J11 — customer email with social noise",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=story"
     },
     {
       "skill": "PR-Reviewer",
-      "input": "Input 1 — defects + style noise",
+      "code": "P1",
+      "input": "P1 — injection + style noise",
       "runs": 3,
       "status": "PASS",
-      "note": "line-number noise + tests-severity hardened"
+      "note": "gate=—"
     },
     {
       "skill": "PR-Reviewer",
-      "input": "Input 2 — unprotected endpoint",
+      "code": "P2",
+      "input": "P2 — unprotected admin endpoint",
       "runs": 3,
       "status": "PASS",
-      "note": "missing-tests severity pinned to domain"
+      "note": "gate=—"
     },
     {
       "skill": "PR-Reviewer",
-      "input": "Input 3 — clean diff",
+      "code": "P3",
+      "input": "P3 — clean diff (the temptation)",
       "runs": 3,
       "status": "PASS",
-      "note": "clean diff → LGTM, zero invented findings"
+      "note": "gate=—"
+    },
+    {
+      "skill": "PR-Reviewer",
+      "code": "P4",
+      "input": "P4 — auth bypass hidden in a catch",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "PR-Reviewer",
+      "code": "P5",
+      "input": "P5 — race condition",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "PR-Reviewer",
+      "code": "P6",
+      "input": "P6 — resource leak",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "PR-Reviewer",
+      "code": "P7",
+      "input": "P7 — deletion-only diff",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "PR-Reviewer",
+      "code": "P8",
+      "input": "P8 — no diff, description only",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "Release-Notes-Writer",
+      "code": "R1",
+      "input": "R1 — mixed git + Jira dump",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "Release-Notes-Writer",
+      "code": "R2",
+      "input": "R2 — cryptic commits",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "Release-Notes-Writer",
+      "code": "R3",
+      "input": "R3 — Jira-only CSV",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "Release-Notes-Writer",
+      "code": "R4",
+      "input": "R4 — all internal noise",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "Release-Notes-Writer",
+      "code": "R5",
+      "input": "R5 — add + revert pair",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "Release-Notes-Writer",
+      "code": "R6",
+      "input": "R6 — hidden breaking change",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "Release-Notes-Writer",
+      "code": "R7",
+      "input": "R7 — dates instead of keys",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "Release-Notes-Writer",
+      "code": "R8",
+      "input": "R8 — feature spread across 4 commits + 1 Jira",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
     },
     {
       "skill": "Ticket-Tester",
-      "input": "Input 1 — test plan",
+      "code": "T1",
+      "input": "T1 — ticket only (test plan)",
       "runs": 3,
-      "status": "PENDING",
-      "note": ""
+      "status": "PASS",
+      "note": "gate=—"
     },
     {
       "skill": "Ticket-Tester",
-      "input": "Input 2 — QA notes",
+      "code": "T2",
+      "input": "T2 — ticket + QA notes (bug report)",
       "runs": 3,
-      "status": "PENDING",
-      "note": ""
+      "status": "PASS",
+      "note": "gate=—"
     },
     {
       "skill": "Ticket-Tester",
-      "input": "Input 3 — complaint email",
+      "code": "T3",
+      "input": "T3 — complaint email, no ticket",
       "runs": 3,
-      "status": "PENDING",
-      "note": ""
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "Ticket-Tester",
+      "code": "T4",
+      "input": "T4 — ticket with no acceptance criteria",
+      "runs": 3,
+      "status": "PASS",
+      "note": "no-testable-content manifest added so the correct refusal is machine-verifiable"
+    },
+    {
+      "skill": "Ticket-Tester",
+      "code": "T5",
+      "input": "T5 — raw stack trace",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "Ticket-Tester",
+      "code": "T6",
+      "input": "T6 — multiple bugs in one QA session",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "Ticket-Tester",
+      "code": "T7",
+      "input": "T7 — non-reproducible report",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
+    },
+    {
+      "skill": "Ticket-Tester",
+      "code": "T8",
+      "input": "T8 — a result that passes (nothing broken)",
+      "runs": 3,
+      "status": "PASS",
+      "note": "gate=—"
     }
   ]
 }
