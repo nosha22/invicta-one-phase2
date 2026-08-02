@@ -59,7 +59,7 @@
       <span class="text-[var(--accent)] font-bold">skill rooms</span>, then test it at a
       <span class="text-[var(--text-secondary)] font-bold">playground terminal</span>
     </p>
-    <div id="floor-badge" class="inline-block mt-2 bg-[var(--accent-soft)] border border-[var(--accent-border)] text-[var(--accent)] text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">🏢 Ground Floor · Phase 1</div>
+    <div id="floor-badge" class="inline-block mt-2 bg-[var(--accent-soft)] border border-[var(--accent-border)] text-[var(--accent)] text-[10px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">🏢 Second Floor · Phase 2</div>
   </header>
 
   <!-- Game Frame Grid -->
@@ -128,9 +128,44 @@
         📊 Eval Log
       </button>
 
+      <button onclick="openDossierPanel()" class="bg-[var(--btn2)] border border-[var(--line3)] text-[var(--text-main)] font-bold text-[10px] uppercase tracking-wider px-3 py-2 rounded transition">
+        📄 Skill Dossiers
+      </button>
+
       <button onclick="openKeyPanel()" class="bg-[var(--btn2)] border border-[var(--line3)] text-[var(--text-main)] font-bold text-[10px] uppercase tracking-wider px-3 py-2 rounded transition">
         🔑 <span id="key-status">Add your Claude API key</span>
       </button>
+    </div>
+
+    <!-- Skill Dossiers overlay -->
+    <div id="dossier-panel" class="hidden fixed inset-0 z-50 bg-black/80 items-center justify-center p-4" onclick="if(event.target===this)closeDossierPanel()">
+      <div class="bg-[var(--panel2)] border-2 border-[var(--accent-strong)] rounded-xl max-w-lg w-full max-h-[85vh] overflow-auto p-5">
+        <div class="flex justify-between items-center border-b border-[var(--line2)] pb-2 mb-3">
+          <h2 class="text-sm font-black text-[var(--accent)] uppercase tracking-wider">📄 Skill Dossiers</h2>
+          <button onclick="closeDossierPanel()" class="text-xs text-[var(--text-dim)] hover:text-[var(--text-main)] uppercase">[Close]</button>
+        </div>
+        <p class="text-[11px] text-[var(--text-dim2)] mb-4 leading-relaxed">
+          Each Phase 2 skill has a dedicated dossier page — its field discipline, where it's equipped on the floor, and the full production-ready SKILL.md to copy. Opens in a new tab.
+        </p>
+        <div class="flex flex-col gap-2">
+          <a href="skill-1-scribe.html" target="_blank" rel="noopener" class="block bg-[var(--panel)] border border-[var(--line2)] hover:border-[var(--accent-strong)] rounded p-3 transition">
+            <div class="text-[var(--accent)] font-bold text-xs uppercase tracking-wider">📜 The System Scribe</div>
+            <div class="text-[10px] text-[var(--text-dim)] mt-0.5">Jira-Ticket-Writer · brain dumps → Ready-for-Dev stories</div>
+          </a>
+          <a href="skill-2-archivist.html" target="_blank" rel="noopener" class="block bg-[var(--panel)] border border-[var(--line2)] hover:border-[var(--accent-strong)] rounded p-3 transition">
+            <div class="text-[var(--accent)] font-bold text-xs uppercase tracking-wider">🗄️ The Archivist</div>
+            <div class="text-[10px] text-[var(--text-dim)] mt-0.5">Release-Notes-Writer · commits → client-ready changelog</div>
+          </a>
+          <a href="skill-3-sentinel.html" target="_blank" rel="noopener" class="block bg-[var(--panel)] border border-[var(--line2)] hover:border-[var(--accent-strong)] rounded p-3 transition">
+            <div class="text-[var(--accent)] font-bold text-xs uppercase tracking-wider">🛡️ The Code Sentinel</div>
+            <div class="text-[10px] text-[var(--text-dim)] mt-0.5">PR-Reviewer · diff → evidence-cited findings + verdict</div>
+          </a>
+          <a href="skill-4-inspector.html" target="_blank" rel="noopener" class="block bg-[var(--panel)] border border-[var(--line2)] hover:border-[var(--accent-strong)] rounded p-3 transition">
+            <div class="text-[var(--accent)] font-bold text-xs uppercase tracking-wider">🔍 The Inspector</div>
+            <div class="text-[10px] text-[var(--text-dim)] mt-0.5">Ticket-Tester · tickets → test plans · failures → bug tickets</div>
+          </a>
+        </div>
+      </div>
     </div>
 
     <!-- How to Play overlay -->
@@ -154,9 +189,9 @@
 
         <h3 class="text-[11px] font-black text-[var(--accent)] uppercase mt-3 mb-1">🏢 Three floors, one building</h3>
         <ul class="text-[10px] text-[var(--text-dim2)] leading-relaxed list-disc pl-4 mb-3">
-          <li>You start on the <strong class="text-[var(--text-main)]">Ground Floor</strong> — that's Phase 1. Find <strong class="text-[var(--text-main)]">🪜 stairs</strong> to go up.</li>
+          <li>You start on the <strong class="text-[var(--text-main)]">Second Floor</strong> — that's Phase 2, the skill fleet. This is the heart of the submission.</li>
           <li>The badge under the title always shows which floor you're on.</li>
-          <li>A stairwell up on the Ground Floor leads to the <strong class="text-[var(--text-main)]">Second Floor</strong> (Phase 2). A stairwell up there leads to the <strong class="text-[var(--text-main)]">Top Floor</strong> (Phase 3) — go see for yourself what's up there.</li>
+          <li>Take the <strong class="text-[var(--text-main)]">🪜 stairs down</strong> to the <strong class="text-[var(--text-main)]">Ground Floor</strong> (Phase 1, the prompting trials + the sensei), or <strong class="text-[var(--text-main)]">up</strong> to the <strong class="text-[var(--text-main)]">Top Floor</strong> (Phase 3 — go see for yourself what's up there).</li>
         </ul>
 
         <h3 class="text-[11px] font-black text-[var(--accent)] uppercase mt-3 mb-1">🚀 Ground Floor — Phase 1</h3>
@@ -500,11 +535,11 @@
     };
     for (const f of Object.values(FLOORS)) f.map = f.build();
 
-    let currentFloor = 1;
-    let floorMap = FLOORS[1].map;
-    let redRooms = FLOORS[1].rooms;
-    let SENSEI_POS = FLOORS[1].sensei;
-    const SPAWN = FLOORS[1].arrive;
+    let currentFloor = 2;
+    let floorMap = FLOORS[2].map;
+    let redRooms = FLOORS[2].rooms;
+    let SENSEI_POS = FLOORS[2].sensei;
+    const SPAWN = FLOORS[2].arrive;
     // ==== PURE_MAP_END ====
 
     // ============================================================
@@ -1161,6 +1196,23 @@
       const p = document.getElementById('help-panel');
       p.classList.remove('hidden'); p.classList.add('flex');
     }
+
+    // Central map: skill file -> its dedicated dossier page. Used by both the
+    // sidebar Dossiers panel and the per-room "view full dossier" link.
+    const DOSSIER_URL = {
+      'Jira-Ticket-Writer.md': 'skill-1-scribe.html',
+      'Release-Notes-Writer.md': 'skill-2-archivist.html',
+      'PR-Reviewer.md': 'skill-3-sentinel.html',
+      'Ticket-Tester.md': 'skill-4-inspector.html',
+    };
+    function openDossierPanel() {
+      const p = document.getElementById('dossier-panel');
+      p.classList.remove('hidden'); p.classList.add('flex');
+    }
+    function closeDossierPanel() {
+      const p = document.getElementById('dossier-panel');
+      p.classList.add('hidden'); p.classList.remove('flex');
+    }
     function closeHelpPanel() {
       const p = document.getElementById('help-panel');
       p.classList.add('hidden'); p.classList.remove('flex');
@@ -1674,15 +1726,19 @@
         } else if (target.type === 'trial1') {
           options.appendChild(makeBtn('Dress Archivist skill', () =>
             mountSkill('The Archivist', 'Release-Notes-Writer.md', 'Messy git + Jira dump → client-ready changelog. Zero missing features, coverage check reconciled.')));
+          options.appendChild(makeDossierLink('Release-Notes-Writer.md'));
         } else if (target.type === 'trial2') {
           options.appendChild(makeBtn('Dress System Scribe skill', () =>
             mountSkill('The System Scribe', 'Jira-Ticket-Writer.md', 'Brain dumps & transcripts → Ready-for-Dev Gherkin stories. Refuses to hallucinate requirements.')));
+          options.appendChild(makeDossierLink('Jira-Ticket-Writer.md'));
         } else if (target.type === 'trial3') {
           options.appendChild(makeBtn('Dress Code Sentinel skill', () =>
             mountSkill('The Code Sentinel', 'PR-Reviewer.md', 'First-pass diff review: logic, security, architecture, tests — never style.')));
+          options.appendChild(makeDossierLink('PR-Reviewer.md'));
         } else if (target.type === 'bonus') {
           options.appendChild(makeBtn('Dress Inspector skill', () =>
             mountSkill('The Inspector', 'Ticket-Tester.md', 'Tickets → traceable test plans. Failures → ready-to-file bug tickets.')));
+          options.appendChild(makeDossierLink('Ticket-Tester.md'));
         } else if (target.type === 'phase1-kessel') {
           options.appendChild(makeBtn('📖 Read: The Kessel Run', () => openPhase1PanelTo('kessel')));
         } else if (target.type === 'phase1-architect') {
@@ -1725,6 +1781,17 @@
       b.innerText = label;
       b.onclick = cb;
       return b;
+    }
+
+    // A secondary link shown next to a skill's "Dress" button, opening that
+    // skill's dedicated dossier page in a new tab.
+    function makeDossierLink(skillFile) {
+      const a = document.createElement('a');
+      a.href = DOSSIER_URL[skillFile] || '#';
+      a.target = '_blank'; a.rel = 'noopener';
+      a.className = 'text-[10px] text-[var(--text-dim)] hover:text-[var(--accent)] uppercase tracking-wider underline self-center';
+      a.innerText = '📄 View full dossier';
+      return a;
     }
 
     function setRole(sym, className) {
